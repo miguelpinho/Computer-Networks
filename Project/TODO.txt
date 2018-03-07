@@ -1,0 +1,1 @@
+- design a simple system with one server and one client (and the master server)
