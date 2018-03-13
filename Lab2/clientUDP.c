@@ -7,7 +7,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 
-#define IP_SERVER "127.0.1.1"
+#define IP_SERVER "194.210.228.226"
 #define MESSAGE "Oh migaaaaa, queres uma tosta mista?\n"
 
 int main(void)
