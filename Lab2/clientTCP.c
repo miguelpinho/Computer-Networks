@@ -17,7 +17,7 @@ int main(void)
 	struct in_addr *a;
 	char *ptr, buffer[128];
 
-	#define IP_SERVER "194.210.134.31"
+	#define IP_SERVER "194.210.134.1"
 	#define MESSAGE "Oh migaaaaa, queres uma tosta mista?\n"
 
 	fd=socket(AF_INET,SOCK_STREAM,0); //TCP socket

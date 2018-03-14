@@ -17,7 +17,7 @@ int main(void)
 	char buffer[128];
 
 	/* ... */
-	fd=socket(AF_INET,SOCK_DGRAM,0); //TCP socket
+	fd=socket(AF_INET,SOCK_DGRAM,0); //UDP socket
 	if(fd==-1) {
     printf("Error: socket");
     exit(1);//error
