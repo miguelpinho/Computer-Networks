@@ -169,6 +169,9 @@ void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, i
         sscanf(argv[2*i],"%d", cspt);
         csp = 1;
         break;
+      default:
+        printf("Error: Argument not known");
+        exit(1);
     }
   }
     if (csi != 1) {
