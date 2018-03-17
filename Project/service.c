@@ -21,8 +21,6 @@ int main(int argc, char const *argv[]) {
   char msg_out[MAX_STR], buffer[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR];
   struct sockaddr_in addr_central;
 
-
-
   get_arguments (argc, argv, &id, ip, &upt, &tpt, csip, &cspt);
 
   printf("dummy: %d %s %d %d %s %d\n", id, ip, upt, tpt, csip, cspt);
