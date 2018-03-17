@@ -114,7 +114,7 @@ void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, i
   struct hostent *h;
   struct in_addr *a;
 
-  if (argc < 9) {
+  if (argc > 9) {
     printf("Error: incorrect number of arguments");
     exit(1);
   }
