@@ -27,31 +27,6 @@ int main(int argc, char const *argv[]) {
 
   printf("dummy: %d %s %d %d %s %d\n", id, ip, upt, tpt, csip, cspt);
 
-  /* Process arguments. TODO: overhaul */
-/*  if (argc < 9) {
-    printf("Error: incorrect number of arguments");
-    exit(1);
-  }
-  sscanf(argv[2], "%d", &id);
-  strcpy(ip, argv[4]);
-  sscanf(argv[6], "%d", &upt);
-  sscanf(argv[8], "%d", &tpt);
-  if (argc < 11) {
-    if((h=gethostbyname(DEFAULT_HOST))==NULL) {
-      exit(1);
-    }
-
-    a=(struct in_addr*) h->h_addr_list[0];
-    sprintf(csip, "%s", inet_ntoa(*a), (long unsigned int) ntohl(a->s_addr));
-  } else {
-    strcpy(csip, argv[10]);
-  }
-  if (argc < 13) {
-    cspt = DEFAULT_PORT;
-  } else {
-    sscanf(argv[12], "%d", &cspt);
-  }*/
-
   /* Create sockets. */
   fd_udp = socket(AF_INET, SOCK_DGRAM, 0); //UDP socket
 	if(fd_udp == -1) {
