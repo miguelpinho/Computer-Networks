@@ -12,6 +12,8 @@
 #define DEFAULT_HOST "tejo.tecnico.ulisboa.pt"
 #define DEFAULT_PORT 59000
 
+int tosta_mista = 0;
+
 void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt);
 
 int main(int argc, char const *argv[]) {
@@ -31,6 +33,10 @@ int main(int argc, char const *argv[]) {
     printf("Error: socket UDP");
     exit(1);//error
   }
+<<<<<<< HEAD
+=======
+
+>>>>>>> e14b97899f305c209ac7eb96bf8fdd41e1eca6e3
 
   /* Create address central server. */
   memset((void*)&addr_central,(int)'\0',sizeof(addr_central));
@@ -112,7 +118,11 @@ void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, i
   struct hostent *h;
   struct in_addr *a;
 
-  if (argc < 9) {
+<<<<<<< HEAD
+  if (argc > 9) {
+=======
+  if (argc < 10) {
+>>>>>>> e14b97899f305c209ac7eb96bf8fdd41e1eca6e3
     printf("Error: incorrect number of arguments");
     exit(1);
   }
