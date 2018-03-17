@@ -161,4 +161,5 @@ void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, i
       *cspt = DEFAULT_PORT;
     }
 
+
   }
