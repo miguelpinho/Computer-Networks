@@ -31,6 +31,7 @@ int main(int argc, char const *argv[]) {
     printf("Error: socket UDP");
     exit(1);//error
   }
+  
 
   /* Create address central server. */
   memset((void*)&addr_central,(int)'\0',sizeof(addr_central));
