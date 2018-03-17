@@ -12,6 +12,8 @@
 #define DEFAULT_HOST "tejo.tecnico.ulisboa.pt"
 #define DEFAULT_PORT 59000
 
+int tosta_mista = 0;
+
 void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt);
 
 int main(int argc, char const *argv[]) {
@@ -31,7 +33,6 @@ int main(int argc, char const *argv[]) {
     printf("Error: socket UDP");
     exit(1);//error
   }
-  
 
   /* Create address central server. */
   memset((void*)&addr_central,(int)'\0',sizeof(addr_central));
