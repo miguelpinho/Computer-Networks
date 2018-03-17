@@ -31,7 +31,7 @@ int main(int argc, char const *argv[]) {
     printf("Error: socket UDP");
     exit(1);//error
   }
-  
+
 
   /* Create address central server. */
   memset((void*)&addr_central,(int)'\0',sizeof(addr_central));
@@ -113,7 +113,7 @@ void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, i
   struct hostent *h;
   struct in_addr *a;
 
-  if (argc < 9) {
+  if (argc < 10) {
     printf("Error: incorrect number of arguments");
     exit(1);
   }
