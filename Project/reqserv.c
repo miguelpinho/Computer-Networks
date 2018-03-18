@@ -52,18 +52,18 @@ int main(int argc, char const *argv[])
       exit(1);
     }
 
-    for ( i = 1 ; i <= argc/2 ; i++){
+    for ( i = 1 ; i < argc ; i+=2){
 
-      sscanf(argv[2*i-1],"-%c", &ident);
+      sscanf(argv[i],"-%c", &ident);
 
       switch(ident){
 
         case 'i' :
-          strcpy(csip, argv[2*i]);
+          strcpy(csip, argv[i+1]);
           csi = 1;
           break;
         case 'p' :
-          sscanf(argv[2*i],"%d", cspt);
+          sscanf(argv[i+1],"%d", cspt);
           csp = 1;
           break;
         default:
@@ -89,8 +89,8 @@ int main(int argc, char const *argv[])
 
     void request_service(int service, int fd_udp, struct sockaddr_in addr_central, int *addrlen, int *id, char *ip, int *upt) {
 
-      char buffer[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR];
-      int nsend, nrecv, fd_udp_serv, ip1, ip2, ip3, ip4;
+      char buffer[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR], *split, aux[3][MAX_STR];
+      int nsend, nrecv, fd_udp_serv, i = 0;
       struct sockaddr_in addr_service;
 
       // Check if there is one server with the wanted service
@@ -117,10 +117,19 @@ int main(int argc, char const *argv[])
         // Service found
         if (strcmp(msg_data, "0.0.0.0;0") != 0 && *id != 0) {
 
-          sscanf(msg_data, "%d.%d.%d.%d;%d", &ip1, &ip2, &ip3, &ip4, upt);
-          sprintf(ip, "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
+					split = strtok(msg_data, ";");
+					while (split != NULL)
+					{
+				    strcpy(aux[i], split);
+				    split = strtok (NULL, ";");
+						i++;
+				  }
+
+					strcpy(ip, aux[0]);
+					sscanf(aux[1], "%d", upt);
 
           printf("dummy req: %d;%s;%d\n", *id, ip, *upt);
+
 
           fd_udp_serv=socket(AF_INET,SOCK_DGRAM,0); //UDP socket
         	if(fd_udp_serv==-1) {
