@@ -13,13 +13,13 @@
 #define DEFAULT_PORT 59000
 
 void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt);
+void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr_central, int *own_id, char *ip, int upt, int tpt, int *addrlen);
 
 int main(int argc, char const *argv[]) {
-  int id, upt, tpt, cspt, service=-1;
-  int fd_udp, nsend, nrecv, addrlen, own_id, st_id, st_tpt;
-  char ip[MAX_STR], csip[MAX_STR], st_ip[MAX_STR];
-  char msg_out[MAX_STR], buffer[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR];
-  struct sockaddr_in addr_central;
+  int id, upt, tpt, cspt, service=-1, ret, nread;
+  int fd_udp, fd_client, addrlen, own_id, st_id, st_tpt;
+  char ip[MAX_STR], csip[MAX_STR], st_ip[MAX_STR], toggle[MAX_STR], msg_out[MAX_STR], buffer[MAX_STR];
+  struct sockaddr_in addr_central, addr_serve, addr_client;
 
   get_arguments (argc, argv, &id, ip, &upt, &tpt, csip, &cspt);
 
@@ -32,6 +32,7 @@ int main(int argc, char const *argv[]) {
     exit(1);//error
   }
 
+
   /* Create address central server. */
   memset((void*)&addr_central,(int)'\0',sizeof(addr_central));
 	addr_central.sin_family=AF_INET;
@@ -39,15 +40,58 @@ int main(int argc, char const *argv[]) {
 	addr_central.sin_port=htons(cspt);
 
   /* Regist server in central, with service x. */
-  service = 3;
-  /* TODO: MALACA - chamar a função (acertar args) */
+  service = 4;
+
+  regist_on_central(service, fd_udp, id, addr_central, &own_id, ip, upt, tpt, &addrlen);
 
   /* Read input. */
   /* TODO: parse args */
 
   /* Serve client. */
   /* TODO: MALACA - recvfrom a la server, sendto quem vier */
+  fd_client = socket(AF_INET, SOCK_DGRAM, 0); //UDP socket
+	if (fd_client == -1) {
+    printf("Error: socket serving");
+    exit(1);//error
+  }
 
+  memset((void*)&addr_serve,(int)'\0',sizeof(addr_serve));
+  addr_serve.sin_family=AF_INET;
+  addr_serve.sin_addr.s_addr=inet_addr(ip);
+  addr_serve.sin_port=htons(upt);
+
+  ret=bind (fd_client,(struct sockaddr*)&addr_serve,sizeof(addr_serve));
+  if(ret==-1) {
+    printf("Error: bind \n");
+
+    exit(1);//error
+  }
+
+  memset((void*)&addr_client,(int)'\0',sizeof(addr_client));
+
+  while(1){
+    addrlen = sizeof(addr_client);
+
+    nread=recvfrom(fd_client,buffer,128,0,(struct sockaddr*)&addr_client,&addrlen);
+    if(nread==-1)exit(1);//error
+
+    buffer[nread] = '\0';
+    printf("%s\n", buffer);
+
+    sscanf(buffer, "MY_SERVICE %s", toggle);
+
+    if (strcmp(toggle, "ON") == 0){
+      sprintf(msg_out, "YOUR_SERVICE ON");
+      ret=sendto(fd_client,msg_out,strlen(msg_out),0,(struct sockaddr*)&addr_client,addrlen);
+      if(ret==-1)exit(1);//error
+    } else {
+      sprintf(msg_out, "YOUR_SERVICE OFF");
+      ret=sendto(fd_client,msg_out,strlen(msg_out),0,(struct sockaddr*)&addr_client,addrlen);
+      if(ret==-1)exit(1);//error
+    }
+
+
+  }
   /* Exit. */
 
   close(fd_udp);
@@ -113,7 +157,11 @@ void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, i
 
   }
 
-void regist_on_central (int service) {
+void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr_central, int *own_id, char *ip, int upt, int tpt, int *addrlen) {
+
+  char buffer[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR];
+  int nsend, nrecv;
+
   /* Regist this service server in the central server (UDP). */
   // get start server
   sprintf(msg_out, "GET_START %d;%d", service, id);
@@ -122,8 +170,8 @@ void regist_on_central (int service) {
     printf("Error: send");
     exit(1); //error
   }
-  addrlen = sizeof(addr_central); // rewrite address????
-	nrecv = recvfrom(fd_udp, buffer, 128, 0, (struct sockaddr*)&addr_central, &addrlen);
+  *addrlen = sizeof(addr_central); // rewrite address????
+	nrecv = recvfrom(fd_udp, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
 	if( nrecv == -1 ) {
     printf("Error: recv");
     exit(1);//error
@@ -131,7 +179,7 @@ void regist_on_central (int service) {
   buffer[nrecv] = '\0';
   printf("%s\n", buffer);
 
-  sscanf(buffer, "%s %d;%s", msg_type, &own_id, msg_data);
+  sscanf(buffer, "%s %d;%s", msg_type, own_id, msg_data);
   if (strcmp(msg_type, "OK") != 0) {
     printf("Erro: msg\n");
   } else {
@@ -145,8 +193,8 @@ void regist_on_central (int service) {
         printf("Error: send");
         exit(1); //error
       }
-      addrlen = sizeof(addr_central); // rewrite address????
-    	nrecv = recvfrom(fd_udp, buffer, 128, 0, (struct sockaddr*)&addr_central, &addrlen);
+      *addrlen = sizeof(addr_central); // rewrite address????
+    	nrecv = recvfrom(fd_udp, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
     	if( nrecv == -1 ) {
         printf("Error: recv");
         exit(1);//error
@@ -166,8 +214,8 @@ void regist_on_central (int service) {
     printf("Error: send");
     exit(1); //error
   }
-  addrlen = sizeof(addr_central); // rewrite address????
-  nrecv = recvfrom(fd_udp, buffer, 128, 0, (struct sockaddr*)&addr_central, &addrlen);
+  *addrlen = sizeof(addr_central); // rewrite address????
+  nrecv = recvfrom(fd_udp, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
   if( nrecv == -1 ) {
     printf("Error: recv");
     exit(1);//error
