@@ -149,6 +149,7 @@ int main(int argc, char const *argv[])
             exit(1); //error
           }
           *addrlen = sizeof(addr_service); // rewrite address????
+
         	nrecv = recvfrom(fd_udp_serv, buffer, 128, 0, (struct sockaddr*)&addr_service, addrlen);
         	if( nrecv == -1 ) {
             printf("Error: recv");
