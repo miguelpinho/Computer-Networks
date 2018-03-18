@@ -220,11 +220,11 @@ void serve_client (int fd_service, sockaddr_in *addr_client) {
 
   if (strcmp(toggle, "ON") == 0){
     sprintf(msg_out, "YOUR_SERVICE ON");
-    ret=sendto(fd_client,msg_out,strlen(msg_out),0,(struct sockaddr*)&addr_client,addrlen);
+    ret=sendto(fd_client,msg_out,strlen(msg_out),0,(struct sockaddr*)addr_client,addrlen);
     if(ret==-1)exit(1);//error
   } else if (strcmp(toggle, "OFF") == 0) {
     sprintf(msg_out, "YOUR_SERVICE OFF");
-    ret=sendto(fd_client,msg_out,strlen(msg_out),0,(struct sockaddr*)&addr_client,addrlen);
+    ret=sendto(fd_client,msg_out,strlen(msg_out),0,(struct sockaddr*)addr_client,addrlen);
     if(ret==-1)exit(1);//error
   } else {
     /* TODO: invalid message. */
