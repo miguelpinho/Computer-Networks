@@ -13,50 +13,52 @@
 #define DEFAULT_PORT 59000
 
 void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt);
-void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr_central, int *own_id, char *ip, int upt, int tpt, int *addrlen);
+void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr_central, int *own_id, char *ip, int upt, int tpt, socklen_t *addrlen);
 void serve_client (int fd_service, struct sockaddr_in *addr_client);
 
 int main(int argc, char const *argv[]) {
-  int id, upt, tpt, cspt, service=-1, ret, nread;
-  int fd_udp, fd_service, addrlen, own_id, st_id, st_tpt;
-  char ip[MAX_STR], csip[MAX_STR], st_ip[MAX_STR], toggle[MAX_STR], msg_out[MAX_STR], buffer[MAX_STR];
-  struct sockaddr_in addr_central, addr_serve, addr_client;
+  int id, upt, tpt, cspt, service=-1, ret;
+  int fd_udp, fd_service, own_id;
+  /*int nread, st_id, st_tpt;*/
+  socklen_t addrlen;
+  char ip[MAX_STR], csip[MAX_STR];
+  struct sockaddr_in addr_central, addr_service, addr_client;
 
-  get_arguments (argc, argv, &id, ip, &upt, &tpt, csip, &cspt);
+  get_arguments(argc, argv, &id, ip, &upt, &tpt, csip, &cspt);
 
   printf("dummy: %d %s %d %d %s %d\n", id, ip, upt, tpt, csip, cspt);
 
   /* Create socket for communication with central. */
-  fd_udp = socket(AF_INET, SOCK_DGRAM, 0); //UDP socket
+  fd_udp = socket(AF_INET, SOCK_DGRAM, 0);
 	if(fd_udp == -1) {
     printf("Error: socket UDP");
-    exit(1);//error
+    exit(1); /*error*/
   }
 
   /* Create address of the central server. */
-  memset((void*)&addr_central,(int)'\0',sizeof(addr_central));
-	addr_central.sin_family=AF_INET;
+  memset((void*) &addr_central, (int)'\0', sizeof(addr_central));
+	addr_central.sin_family = AF_INET;
 	addr_central.sin_addr.s_addr = inet_addr(csip);
-	addr_central.sin_port=htons(cspt);
+	addr_central.sin_port = htons(cspt);
 
   /* Create socket for the service to the client. */
-  fd_service = socket(AF_INET, SOCK_DGRAM, 0); //UDP socket
+  fd_service = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd_service == -1) {
     printf("Error: socket serving");
-    exit(1);//error
+    exit(1); /*error*/
   }
 
   /* Binds client serving socket to the given address. */
-  memset((void*)&addr_serve,(int)'\0',sizeof(addr_serve));
-  addr_serve.sin_family=AF_INET;
-  addr_serve.sin_addr.s_addr=inet_addr(ip);
-  addr_serve.sin_port=htons(upt);
+  memset((void*) &addr_service, (int)'\0', sizeof(addr_service));
+  addr_service.sin_family = AF_INET;
+  addr_service.sin_addr.s_addr = inet_addr(ip);
+  addr_service.sin_port = htons(upt);
 
-  ret=bind (fd_service,(struct sockaddr*)&addr_serve,sizeof(addr_serve));
-  if(ret==-1) {
+  ret = bind(fd_service,(struct sockaddr*)&addr_service,sizeof(addr_service));
+  if (ret == -1) {
     printf("Error: bind \n");
 
-    exit(1);//error
+    exit(1); /*error*/
   }
 
   /* Regist server in central, with service x. */
@@ -67,10 +69,10 @@ int main(int argc, char const *argv[]) {
   /* TODO: parse args */
 
   /* Adress of the client being served. */
-  memset((void*)&addr_client,(int)'\0',sizeof(addr_client));
+  memset((void*) &addr_client, (int) '\0', sizeof(addr_client));
 
   while(1){
-    // Respond to a client request.
+    /* Respond to a client request. */
     serve_client(fd_service, &addr_client);
   }
   /* Exit. */
@@ -128,7 +130,7 @@ void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, i
       }
 
       a=(struct in_addr*) h->h_addr_list[0];
-      sprintf(csip, "%s", inet_ntoa(*a), (long unsigned int) ntohl(a->s_addr));
+      sprintf(csip, "%s", inet_ntoa(*a));
     }
 
     if (csp != 1) {
@@ -138,24 +140,24 @@ void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, i
 
   }
 
-void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr_central, int *own_id, char *ip, int upt, int tpt, int *addrlen) {
+void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr_central, int *own_id, char *ip, int upt, int tpt, socklen_t *addrlen) {
 
   char buffer[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR];
   int nsend, nrecv;
 
   /* Regist this service server in the central server (UDP). */
-  // get start server
+  /* get start server */
   sprintf(msg_out, "GET_START %d;%d", service, id);
   nsend = sendto(fd_udp, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_central, sizeof(addr_central));
 	if( nsend == -1 ) {
     printf("Error: send");
-    exit(1); //error
+    exit(1); /*error*/
   }
-  *addrlen = sizeof(addr_central); // rewrite address????
+  *addrlen = sizeof(addr_central);
 	nrecv = recvfrom(fd_udp, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
 	if( nrecv == -1 ) {
     printf("Error: recv");
-    exit(1);//error
+    exit(1); /*error*/
   }
   buffer[nrecv] = '\0';
   printf("%s\n", buffer);
@@ -167,23 +169,23 @@ void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr
     if (strcmp(msg_data, "0;0.0.0.0;0") == 0) {
       /* This is the start server. */
 
-      // set start
+      /* set start */
       sprintf(msg_out, "SET_START %d;%d;%s;%d", service, id, ip, tpt);
       nsend = sendto(fd_udp, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_central, sizeof(addr_central));
     	if( nsend == -1 ) {
         printf("Error: send");
-        exit(1); //error
+        exit(1); /*error*/
       }
-      *addrlen = sizeof(addr_central); // rewrite address????
+      *addrlen = sizeof(addr_central);
     	nrecv = recvfrom(fd_udp, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
     	if( nrecv == -1 ) {
         printf("Error: recv");
-        exit(1);//error
+        exit(1); /*error*/
       }
       buffer[nrecv] = '\0';
       printf("%s\n", buffer);
     } else {
-      // Save the start server.
+      /* Save the start server. */
 
     }
   }
@@ -193,26 +195,27 @@ void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr
   nsend = sendto(fd_udp, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_central, sizeof(addr_central));
   if( nsend == -1 ) {
     printf("Error: send");
-    exit(1); //error
+    exit(1); /*error*/
   }
-  *addrlen = sizeof(addr_central); // rewrite address????
+  *addrlen = sizeof(addr_central); 
   nrecv = recvfrom(fd_udp, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
   if( nrecv == -1 ) {
     printf("Error: recv");
-    exit(1);//error
+    exit(1); /*error*/
   }
   buffer[nrecv] = '\0';
   printf("%s\n", buffer);
 }
 
 void serve_client (int fd_service, struct sockaddr_in *addr_client) {
-  int ret, nread, addrlen;
+  int ret, nread;
+  socklen_t addrlen;
   char toggle[MAX_STR], msg_in[MAX_STR], msg_out[MAX_STR];
 
   addrlen = sizeof(struct sockaddr_in);
 
-  nread=recvfrom(fd_service,msg_in,128,0,(struct sockaddr*)addr_client,&addrlen);
-  if(nread==-1)exit(1);//error
+  nread = recvfrom(fd_service, msg_in, 128, 0, (struct sockaddr*) addr_client, &addrlen);
+  if (nread==-1) exit(1); /*error*/
 
   msg_in[nread] = '\0';
   printf("%s\n", msg_in);
@@ -221,12 +224,12 @@ void serve_client (int fd_service, struct sockaddr_in *addr_client) {
 
   if (strcmp(toggle, "ON") == 0){
     sprintf(msg_out, "YOUR_SERVICE ON");
-    ret=sendto(fd_service,msg_out,strlen(msg_out),0,(struct sockaddr*)addr_client,addrlen);
-    if(ret==-1)exit(1);//error
+    ret = sendto(fd_service,msg_out, strlen(msg_out), 0, (struct sockaddr*) addr_client, addrlen);
+    if (ret==-1) exit(1); /*error*/
   } else if (strcmp(toggle, "OFF") == 0) {
     sprintf(msg_out, "YOUR_SERVICE OFF");
-    ret=sendto(fd_service,msg_out,strlen(msg_out),0,(struct sockaddr*)addr_client,addrlen);
-    if(ret==-1)exit(1);//error
+    ret = sendto(fd_service, msg_out, strlen(msg_out), 0, (struct sockaddr*) addr_client, addrlen);
+    if (ret==-1) exit(1); /*error*/
   } else {
     /* TODO: invalid message. */
   }
