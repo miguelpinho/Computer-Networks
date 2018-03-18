@@ -12,15 +12,18 @@
 #define DEFAULT_HOST "tejo.tecnico.ulisboa.pt"
 #define DEFAULT_PORT 59000
 
+enum status {AVAILABLE, BUSY};
+
 void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt);
-void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr_central, int *own_id, char *ip, int upt, int tpt, socklen_t *addrlen);
+void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr_central, int *my_id, char *ip, int upt, int tpt, socklen_t *addrlen);
 void serve_client (int fd_service, struct sockaddr_in *addr_client);
 
 int main(int argc, char const *argv[]) {
-  int id, upt, tpt, cspt, service=-1, ret;
-  int fd_udp, fd_service, own_id;
+  int id, upt, tpt, cspt, service = -1, ret;
+  int fd_udp, fd_service, my_id;
   /*int nread, st_id, st_tpt;*/
   socklen_t addrlen;
+  status my_status;
   char ip[MAX_STR], csip[MAX_STR];
   struct sockaddr_in addr_central, addr_service, addr_client;
 
@@ -63,7 +66,7 @@ int main(int argc, char const *argv[]) {
 
   /* Regist server in central, with service x. */
   service = 4;
-  regist_on_central(service, fd_udp, id, addr_central, &own_id, ip, upt, tpt, &addrlen);
+  regist_on_central(service, fd_udp, id, addr_central, &my_id, ip, upt, tpt, &addrlen);
 
   /* Read input. */
   /* TODO: parse args */
@@ -83,7 +86,7 @@ int main(int argc, char const *argv[]) {
   return 0;
 }
 
-void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt) {
+void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt) {
   int i;
   char ident;
   int csi = 0, csp = 0;
@@ -138,10 +141,44 @@ void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, i
       *cspt = DEFAULT_PORT;
     }
 
+    return;
+  }
+
+void parse_user_input() {
+  char buffer[MAX_STR], cmd[MAX_STR];
+  int service;
+
+  if (fgets(buffer, MAX_STR, stdin) == NULL) {
+    /* Nothing to read. */
 
   }
 
-void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr_central, int *own_id, char *ip, int upt, int tpt, socklen_t *addrlen) {
+  sscanf(buffer, "%s", cmd);
+
+  /* Parse input. */
+  if (strcmp(cmd, "join") == 0) {
+    /* Read service id. */
+    sscanf(buffer, "%*s %d", service)
+
+    /* Join the service ring. */
+
+  } else if (strcmp(cmd, "show_state") == 0) {
+    /* Show the server state. */
+
+  } else if (strcmp(cmd, "leave") == 0) {
+    /* Leave the service ring. */
+
+  } else if (strcmp(cmd, "exit") == 0) {
+    /* Exit. */
+
+  } else {
+    /* Invalid message. */
+
+  }
+
+}
+
+void regist_on_central(int service, int fd_udp, int id, struct sockaddr_in addr_central, int *my_id, char *ip, int upt, int tpt, socklen_t *addrlen) {
 
   char buffer[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR];
   int nsend, nrecv;
@@ -163,7 +200,7 @@ void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr
   buffer[nrecv] = '\0';
   printf("%s\n", buffer);
 
-  sscanf(buffer, "%s %d;%s", msg_type, own_id, msg_data);
+  sscanf(buffer, "%s %d;%s", msg_type, my_id, msg_data);
   if (strcmp(msg_type, "OK") != 0) {
     printf("Erro: msg\n");
   } else {
@@ -208,7 +245,7 @@ void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr
   printf("%s\n", buffer);
 }
 
-void serve_client (int fd_service, struct sockaddr_in *addr_client) {
+void serve_client(int fd_service, struct sockaddr_in *addr_client) {
   int ret, nread;
   socklen_t addrlen;
   char toggle[MAX_STR], msg_in[MAX_STR], msg_out[MAX_STR];
