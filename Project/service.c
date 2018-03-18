@@ -24,7 +24,7 @@ int main(int argc, char const *argv[]) {
   int fd_udp, fd_service, my_id;
   /*int nread, st_id, st_tpt;*/
   socklen_t addrlen;
-  status my_status;
+  enum status my_status;
   char ip[MAX_STR], csip[MAX_STR];
   struct sockaddr_in addr_central, addr_service, addr_client;
 
@@ -159,7 +159,7 @@ void parse_user_input() {
   /* Parse input. */
   if (strcmp(cmd, "join") == 0) {
     /* Read service id. */
-    sscanf(buffer, "%*s %d", service)
+    sscanf(buffer, "%*s %d", &service);
 
     /* Join the service ring. */
 
