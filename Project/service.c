@@ -14,6 +14,7 @@
 
 void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt);
 void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr_central, int *own_id, char *ip, int upt, int tpt, int *addrlen);
+void serve_client (int fd_service, struct sockaddr_in *addr_client);
 
 int main(int argc, char const *argv[]) {
   int id, upt, tpt, cspt, service=-1, ret, nread;
@@ -204,11 +205,11 @@ void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr
   printf("%s\n", buffer);
 }
 
-void serve_client (int fd_service, sockaddr_in *addr_client) {
+void serve_client (int fd_service, struct sockaddr_in *addr_client) {
   int ret, nread, addrlen;
   char toggle[MAX_STR], msg_in[MAX_STR], msg_out[MAX_STR];
 
-  addrlen = sizeof(sockaddr_in);
+  addrlen = sizeof(struct sockaddr_in);
 
   nread=recvfrom(fd_service,msg_in,128,0,(struct sockaddr*)addr_client,&addrlen);
   if(nread==-1)exit(1);//error
@@ -218,13 +219,14 @@ void serve_client (int fd_service, sockaddr_in *addr_client) {
 
   sscanf(msg_in, "MY_SERVICE %s", toggle);
 
+
   if (strcmp(toggle, "ON") == 0){
     sprintf(msg_out, "YOUR_SERVICE ON");
-    ret=sendto(fd_client,msg_out,strlen(msg_out),0,(struct sockaddr*)&addr_client,addrlen);
+    ret=sendto(fd_service,msg_out,strlen(msg_out),0,(struct sockaddr*)addr_client,addrlen);
     if(ret==-1)exit(1);//error
   } else if (strcmp(toggle, "OFF") == 0) {
     sprintf(msg_out, "YOUR_SERVICE OFF");
-    ret=sendto(fd_client,msg_out,strlen(msg_out),0,(struct sockaddr*)&addr_client,addrlen);
+    ret=sendto(fd_service,msg_out,strlen(msg_out),0,(struct sockaddr*)addr_client,addrlen);
     if(ret==-1)exit(1);//error
   } else {
     /* TODO: invalid message. */
