@@ -10,15 +10,16 @@
 #define MAX_STR 50
 #define DEFAULT_HOST "tejo.tecnico.ulisboa.pt"
 #define DEFAULT_PORT 59000
+enum input_type {IN_ERROR, IN_RS, IN_TS, IN_EXIT};
 
 void get_arguments(int argc, const char *argv[], char *csip, int *cspt);
-void parse_user_input();
+int parse_user_input(int *service);
 void request_service(int service, int fd_udp, int *fd_udp_serv, struct sockaddr_in addr_central, struct sockaddr_in *addr_service, socklen_t *addrlen, int *id, char *ip, int *upt);
 void terminate_service(int fd_udp_serv, struct sockaddr_in addr_service, socklen_t *addrlen);
 
 int main(int argc, char const *argv[])
 {
-	int fd_udp, fd_udp_serv, cspt, service, id, upt;
+	int fd_udp, fd_udp_serv, cspt, service, id, upt, exit_f = 0, sel_in;
 	socklen_t addrlen;
 	struct sockaddr_in addr_central, addr_service;
 	char csip[MAX_STR], ip[MAX_STR];
@@ -37,12 +38,28 @@ int main(int argc, char const *argv[])
 	addr_central.sin_addr.s_addr = inet_addr(csip);
 	addr_central.sin_port = htons(cspt);
 
-	service = 4;
+	while(exit_f == 0){
+		sel_in = parse_user_input(&service);
 
-  /* Getting terminal input */
-  request_service(service, fd_udp, &fd_udp_serv, addr_central, &addr_service, &addrlen, &id, ip, &upt);
-	terminate_service(fd_udp_serv, addr_service, &addrlen);
+		switch(sel_in){
+			case IN_RS:
+				request_service(service, fd_udp, &fd_udp_serv, addr_central, &addr_service, &addrlen, &id, ip, &upt);
+				break;
+			case IN_TS:
+				terminate_service(fd_udp_serv, addr_service, &addrlen);
+				break;
+			case IN_EXIT:
+				exit_f = 1;
+				break;
+			case IN_ERROR:
+				printf("Error: Client interface\n");
+				exit(1);
+				break;
+			}
 
+	}
+	close(fd_udp);
+	close(fd_udp_serv);
 	return 0;
 }
 
@@ -90,36 +107,34 @@ void get_arguments (int argc, const char *argv[], char *csip, int *cspt) {
   }
 }
 
-void parse_user_input() {
+int parse_user_input(int *service) {
   char buffer[MAX_STR], cmd[MAX_STR];
-  int service;
 
   if (fgets(buffer, MAX_STR, stdin) == NULL) {
     /* Nothing to read. */
-
+		return IN_ERROR;
   }
 
   sscanf(buffer, "%s", cmd);
 
   /* Parse input. */
-  if (strcmp(cmd, "join") == 0) {
-    /* Read service id. */
-    sscanf(buffer, "%*s %d", service)
+  if (strcmp(cmd, "rs") == 0) {
+    /* Request service x */
+		sscanf(buffer, "%*s %d", service);
+		return IN_RS;
 
-    /* Join the service ring. */
-
-  } else if (strcmp(cmd, "show_state") == 0) {
-    /* Show the server state. */
-
-  } else if (strcmp(cmd, "leave") == 0) {
-    /* Leave the service ring. */
+	} else if (strcmp(cmd, "ts") == 0) {
+    /* Terminate service. */
+		*service = -1;
+		return IN_TS;
 
   } else if (strcmp(cmd, "exit") == 0) {
     /* Exit. */
+		return IN_EXIT;
 
   } else {
     /* Invalid message. */
-
+		return IN_ERROR;
   }
 
 }
