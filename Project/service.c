@@ -36,7 +36,7 @@ int main(int argc, char const *argv[]) {
   }
 
   /* Create address of the central server. */
-  memset((void*) &addr_central, (int)'\0', sizeof(addr_central));
+  memset((void*) &addr_central, (int) '\0', sizeof(addr_central));
 	addr_central.sin_family = AF_INET;
 	addr_central.sin_addr.s_addr = inet_addr(csip);
 	addr_central.sin_port = htons(cspt);
@@ -49,12 +49,12 @@ int main(int argc, char const *argv[]) {
   }
 
   /* Binds client serving socket to the given address. */
-  memset((void*) &addr_service, (int)'\0', sizeof(addr_service));
+  memset((void*) &addr_service, (int) '\0', sizeof(addr_service));
   addr_service.sin_family = AF_INET;
   addr_service.sin_addr.s_addr = inet_addr(ip);
   addr_service.sin_port = htons(upt);
 
-  ret = bind(fd_service,(struct sockaddr*)&addr_service,sizeof(addr_service));
+  ret = bind(fd_service, (struct sockaddr*) &addr_service, sizeof(addr_service));
   if (ret == -1) {
     printf("Error: bind \n");
 
@@ -75,6 +75,7 @@ int main(int argc, char const *argv[]) {
     /* Respond to a client request. */
     serve_client(fd_service, &addr_client);
   }
+
   /* Exit. */
   close(fd_udp);
   close(fd_service);
@@ -197,7 +198,7 @@ void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr
     printf("Error: send");
     exit(1); /*error*/
   }
-  *addrlen = sizeof(addr_central); 
+  *addrlen = sizeof(addr_central);
   nrecv = recvfrom(fd_udp, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
   if( nrecv == -1 ) {
     printf("Error: recv");

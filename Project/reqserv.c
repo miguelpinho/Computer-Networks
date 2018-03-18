@@ -1,4 +1,3 @@
-/* Ver código client.c do lab 2. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -48,7 +47,7 @@ void get_arguments (int argc, const char *argv[], char *csip, int *cspt) {
   char ident;
   int csi = 0, csp = 0;
   struct hostent *h;
-  struct in_addr *a;
+  struct in_addr *addr_cs;
 
   if (argc < 1) {
     printf("Error: incorrect number of arguments");
@@ -74,12 +73,12 @@ void get_arguments (int argc, const char *argv[], char *csip, int *cspt) {
   }
 
   if (csi != 1) {
-    if((h=gethostbyname(DEFAULT_HOST))==NULL) {
+    if ((h = gethostbyname(DEFAULT_HOST)) == NULL) {
       exit(1);
     }
 
-    a=(struct in_addr*) h->h_addr_list[0];
-    sprintf(csip, "%s", inet_ntoa(*a));
+    addr_cs = (struct in_addr*) h->h_addr_list[0];
+    sprintf(csip, "%s", inet_ntoa(*addr_cs));
   }
 
   if (csp != 1) {
@@ -88,7 +87,6 @@ void get_arguments (int argc, const char *argv[], char *csip, int *cspt) {
 }
 
 void request_service(int service, int fd_udp, struct sockaddr_in addr_central, socklen_t *addrlen, int *id, char *ip, int *upt) {
-
   char msg_in[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR], *split, aux[3][MAX_STR];
   int nsend, nrecv, fd_udp_serv, i = 0;
   struct sockaddr_in addr_service;
@@ -159,8 +157,8 @@ void request_service(int service, int fd_udp, struct sockaddr_in addr_central, s
     } else {
       /* No server providing the Service */
       printf("No server providing that service\n");
-      /*Error????*/
 
+			/*Error????*/
     }
   }
 }
