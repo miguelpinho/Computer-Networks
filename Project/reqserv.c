@@ -12,13 +12,14 @@
 #define DEFAULT_PORT 59000
 
 void get_arguments(int argc, const char *argv[], char *csip, int *cspt);
-void request_service(int service, int fd_udp, struct sockaddr_in addr_central, socklen_t *addrlen, int *id, char *ip, int *upt);
+void request_service(int service, int fd_udp, int *fd_udp_serv, struct sockaddr_in addr_central, struct sockaddr_in *addr_service, socklen_t *addrlen, int *id, char *ip, int *upt);
+void terminate_service(int fd_udp_serv, struct sockaddr_in addr_service, socklen_t *addrlen);
 
 int main(int argc, char const *argv[])
 {
-	int fd_udp, cspt, service, id, upt;
+	int fd_udp, fd_udp_serv, cspt, service, id, upt;
 	socklen_t addrlen;
-	struct sockaddr_in addr_central;
+	struct sockaddr_in addr_central, addr_service;
 	char csip[MAX_STR], ip[MAX_STR];
 
   get_arguments(argc, argv, csip, &cspt);
@@ -35,9 +36,11 @@ int main(int argc, char const *argv[])
 	addr_central.sin_addr.s_addr = inet_addr(csip);
 	addr_central.sin_port = htons(cspt);
 
+	service = 4;
+
   /* Getting terminal input */
-  service = 4;
-  request_service(service, fd_udp, addr_central, &addrlen, &id, ip, &upt);
+  request_service(service, fd_udp, &fd_udp_serv, addr_central, &addr_service, &addrlen, &id, ip, &upt);
+	terminate_service(fd_udp_serv, addr_service, &addrlen);
 
 	return 0;
 }
@@ -86,10 +89,9 @@ void get_arguments (int argc, const char *argv[], char *csip, int *cspt) {
   }
 }
 
-void request_service(int service, int fd_udp, struct sockaddr_in addr_central, socklen_t *addrlen, int *id, char *ip, int *upt) {
+void request_service(int service, int fd_udp, int *fd_udp_serv, struct sockaddr_in addr_central, struct sockaddr_in *addr_service, socklen_t *addrlen, int *id, char *ip, int *upt) {
   char msg_in[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR], *split, aux[3][MAX_STR];
-  int nsend, nrecv, fd_udp_serv, i = 0;
-  struct sockaddr_in addr_service;
+  int nsend, nrecv, i = 0;
 
   /* Check if there is one server with the wanted service. */
   sprintf(msg_out, "GET_DS_SERVER %d", service);
@@ -128,26 +130,26 @@ void request_service(int service, int fd_udp, struct sockaddr_in addr_central, s
 
       printf("dummy req: %d;%s;%d\n", *id, ip, *upt);
 
-      fd_udp_serv = socket(AF_INET, SOCK_DGRAM, 0);
-    	if (fd_udp_serv == -1) {
+      *fd_udp_serv = socket(AF_INET, SOCK_DGRAM, 0);
+    	if (*fd_udp_serv == -1) {
         printf("Error: socket");
         exit(1); /*error*/
       }
 
-      memset((void*) &addr_service, (int) '\0', sizeof(addr_service));
-    	addr_service.sin_family = AF_INET;
-    	addr_service.sin_addr.s_addr = inet_addr(ip);
-    	addr_service.sin_port = htons(*upt);
+      memset((void*) addr_service, (int) '\0', sizeof(*addr_service));
+    	addr_service->sin_family = AF_INET;
+    	addr_service->sin_addr.s_addr = inet_addr(ip);
+    	addr_service->sin_port = htons(*upt);
 
       sprintf(msg_out, "MY_SERVICE ON");
-      nsend = sendto(fd_udp_serv, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_service, sizeof(addr_service));
+      nsend = sendto(*fd_udp_serv, msg_out, strlen(msg_out), 0, (struct sockaddr*)addr_service, sizeof(*addr_service));
     	if( nsend == -1 ) {
         printf("Error: send");
         exit(1); /*error*/
       }
-      *addrlen = sizeof(addr_service);
+      *addrlen = sizeof(*addr_service);
 
-    	nrecv = recvfrom(fd_udp_serv, msg_in, 128, 0, (struct sockaddr*)&addr_service, addrlen);
+    	nrecv = recvfrom(*fd_udp_serv, msg_in, 128, 0, (struct sockaddr*)addr_service, addrlen);
     	if( nrecv == -1 ) {
         printf("Error: recv");
         exit(1); /*error*/
@@ -161,4 +163,26 @@ void request_service(int service, int fd_udp, struct sockaddr_in addr_central, s
 			/*Error????*/
     }
   }
+}
+
+void terminate_service(int fd_udp_serv, struct sockaddr_in addr_service, socklen_t *addrlen) {
+
+	char msg_out[MAX_STR], msg_in[MAX_STR];
+	int nrecv, nsend;
+
+	sprintf(msg_out, "MY_SERVICE OFF");
+	nsend = sendto(fd_udp_serv, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_service, sizeof(addr_service));
+	if( nsend == -1 ) {
+		printf("Error: send");
+		exit(1); /*error*/
+	}
+	*addrlen = sizeof(addr_service);
+
+	nrecv = recvfrom(fd_udp_serv, msg_in, 128, 0, (struct sockaddr*)&addr_service, addrlen);
+	if( nrecv == -1 ) {
+		printf("Error: recv");
+		exit(1); /*error*/
+	}
+	msg_in[nrecv] = '\0';
+	printf("%s\n", msg_in);
 }
