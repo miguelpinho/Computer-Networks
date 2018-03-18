@@ -13,18 +13,19 @@
 #define DEFAULT_PORT 59000
 
 enum status {AVAILABLE, BUSY};
+enum input_type {IN_ERROR, IN_JOIN, IN_NO_JOIN, IN_STATE, IN_LEAVE, IN_EXIT};
 
 void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt);
-void parse_user_input();
+int parse_user_input(*int service);
 void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr_central, int *my_id, char *ip, int upt, int tpt, socklen_t *addrlen);
 void serve_client (int fd_service, struct sockaddr_in *addr_client);
 
 int main(int argc, char const *argv[]) {
-  int id, upt, tpt, cspt, service = -1, ret;
+  int id, upt, tpt, cspt, service = -1, ret, sel_in, exit_f = 0;
   int fd_udp, fd_service, my_id;
   /*int nread, st_id, st_tpt;*/
   socklen_t addrlen;
-  status my_status;
+  enum status my_status;
   char ip[MAX_STR], csip[MAX_STR];
   struct sockaddr_in addr_central, addr_service, addr_client;
 
@@ -65,17 +66,44 @@ int main(int argc, char const *argv[]) {
     exit(1); /*error*/
   }
 
-  /* Regist server in central, with service x. */
-  service = 4;
-  regist_on_central(service, fd_udp, id, addr_central, &my_id, ip, upt, tpt, &addrlen);
-
-  /* Read input. */
-  /* TODO: parse args */
-
   /* Adress of the client being served. */
   memset((void*) &addr_client, (int) '\0', sizeof(addr_client));
 
-  while(1){
+  while (exit_f == 0) {
+    /* Read user input. */
+    sel_in = parse_user_input(&service);
+
+    switch (sel_in) {
+      case IN_JOIN:
+        /* Regist server in central, with the input service. */
+        regist_on_central(service, fd_udp, id, addr_central, &my_id, ip, upt, tpt, &addrlen);
+
+        /* TODO: Join the service ring. */
+
+        break;
+      case IN_STATE:
+        /* TODO: print state. */
+
+        break;
+      case IN_LEAVE:
+        /* TODO: Leave the service ring. */
+
+        /* TODO: Withdraw from central service?? */
+
+        break;
+      case IN_EXIT:
+        /* TODO: "Gracefully" exit. */
+        exit(1);
+
+        break;
+      case IN_NO_JOIN:
+        printf("Error: Is already providing another service\n");
+        break
+      case IN_ERROR:
+        printf("Error: Invalid input\n");
+        break;
+    }
+
     /* Respond to a client request. */
     serve_client(fd_service, &addr_client);
   }
@@ -145,13 +173,14 @@ void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, in
     return;
   }
 
-void parse_user_input() {
+int parse_user_input(int *service) {
   char buffer[MAX_STR], cmd[MAX_STR];
-  int service;
+  int new_sv;
 
   if (fgets(buffer, MAX_STR, stdin) == NULL) {
     /* Nothing to read. */
 
+    return IN_ERROR;
   }
 
   sscanf(buffer, "%s", cmd);
@@ -159,24 +188,39 @@ void parse_user_input() {
   /* Parse input. */
   if (strcmp(cmd, "join") == 0) {
     /* Read service id. */
-    sscanf(buffer, "%*s %d", service)
+    sscanf(buffer, "%*s %d", &new_sv);
+
+    /* Check if this server alreay belongs to a service ring. */
+    if (*service != -1) {
+
+      return IN_NO_JOIN;
+    }
 
     /* Join the service ring. */
+
+    *service = new_sv;
+
+    return IN_JOIN;
 
   } else if (strcmp(cmd, "show_state") == 0) {
     /* Show the server state. */
 
+    return IN_STATE;
   } else if (strcmp(cmd, "leave") == 0) {
     /* Leave the service ring. */
 
+    *service = -1;
+
+    return IN_LEAVE;
   } else if (strcmp(cmd, "exit") == 0) {
     /* Exit. */
 
+    return IN_EXIT;
   } else {
     /* Invalid message. */
 
+    return IN_ERROR;
   }
-
 }
 
 void regist_on_central(int service, int fd_udp, int id, struct sockaddr_in addr_central, int *my_id, char *ip, int upt, int tpt, socklen_t *addrlen) {
