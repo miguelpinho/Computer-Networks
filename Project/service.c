@@ -15,6 +15,7 @@
 enum status {AVAILABLE, BUSY};
 
 void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt);
+void parse_user_input();
 void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr_central, int *my_id, char *ip, int upt, int tpt, socklen_t *addrlen);
 void serve_client (int fd_service, struct sockaddr_in *addr_client);
 

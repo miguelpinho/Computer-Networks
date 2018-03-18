@@ -12,6 +12,7 @@
 #define DEFAULT_PORT 59000
 
 void get_arguments(int argc, const char *argv[], char *csip, int *cspt);
+void parse_user_input();
 void request_service(int service, int fd_udp, int *fd_udp_serv, struct sockaddr_in addr_central, struct sockaddr_in *addr_service, socklen_t *addrlen, int *id, char *ip, int *upt);
 void terminate_service(int fd_udp_serv, struct sockaddr_in addr_service, socklen_t *addrlen);
 
@@ -87,6 +88,40 @@ void get_arguments (int argc, const char *argv[], char *csip, int *cspt) {
   if (csp != 1) {
     *cspt = DEFAULT_PORT;
   }
+}
+
+void parse_user_input() {
+  char buffer[MAX_STR], cmd[MAX_STR];
+  int service;
+
+  if (fgets(buffer, MAX_STR, stdin) == NULL) {
+    /* Nothing to read. */
+
+  }
+
+  sscanf(buffer, "%s", cmd);
+
+  /* Parse input. */
+  if (strcmp(cmd, "join") == 0) {
+    /* Read service id. */
+    sscanf(buffer, "%*s %d", service)
+
+    /* Join the service ring. */
+
+  } else if (strcmp(cmd, "show_state") == 0) {
+    /* Show the server state. */
+
+  } else if (strcmp(cmd, "leave") == 0) {
+    /* Leave the service ring. */
+
+  } else if (strcmp(cmd, "exit") == 0) {
+    /* Exit. */
+
+  } else {
+    /* Invalid message. */
+
+  }
+
 }
 
 void request_service(int service, int fd_udp, int *fd_udp_serv, struct sockaddr_in addr_central, struct sockaddr_in *addr_service, socklen_t *addrlen, int *id, char *ip, int *upt) {
