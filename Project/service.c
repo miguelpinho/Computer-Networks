@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/time.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -11,18 +13,20 @@
 #define USAGE "service –n id –j ip -u upt –t tpt [-i csip] [-p cspt]"
 #define DEFAULT_HOST "tejo.tecnico.ulisboa.pt"
 #define DEFAULT_PORT 59000
+#define max(A,B) ((A)>=(B)?(A):(B))
 
 enum status {AVAILABLE, BUSY};
 enum input_type {IN_ERROR, IN_JOIN, IN_NO_JOIN, IN_STATE, IN_LEAVE, IN_EXIT};
 
 void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt);
-int parse_user_input(*int service);
-void regist_on_central (int service, int fd_udp, int id, struct sockaddr_in addr_central, int *my_id, char *ip, int upt, int tpt, socklen_t *addrlen);
+int parse_user_input(int *service);
+void regist_on_central (int service, int fd_central, int id, struct sockaddr_in addr_central, int *my_id, char *ip, int upt, int tpt, socklen_t *addrlen);
 void serve_client (int fd_service, struct sockaddr_in *addr_client);
 
 int main(int argc, char const *argv[]) {
-  int id, upt, tpt, cspt, service = -1, ret, sel_in, exit_f = 0;
-  int fd_udp, fd_service, my_id;
+  int id, upt, tpt, cspt, service = -1, ret, sel_in, exit_f = 0, counter;
+  int fd_central, fd_service, my_id, max_fd=0;
+  fd_set rfds;
   /*int nread, st_id, st_tpt;*/
   socklen_t addrlen;
   enum status my_status;
@@ -34,11 +38,12 @@ int main(int argc, char const *argv[]) {
   printf("dummy: %d %s %d %d %s %d\n", id, ip, upt, tpt, csip, cspt);
 
   /* Create socket for communication with central. */
-  fd_udp = socket(AF_INET, SOCK_DGRAM, 0);
-	if(fd_udp == -1) {
-    printf("Error: socket UDP");
+  fd_central = socket(AF_INET, SOCK_DGRAM, 0);
+	if(fd_central == -1) {
+    printf("Error: socket central");
     exit(1); /*error*/
   }
+  max_fd = max(max_fd, fd_central);
 
   /* Create address of the central server. */
   memset((void*) &addr_central, (int) '\0', sizeof(addr_central));
@@ -52,6 +57,7 @@ int main(int argc, char const *argv[]) {
     printf("Error: socket serving");
     exit(1); /*error*/
   }
+  max_fd = max(max_fd, fd_service);
 
   /* Binds client serving socket to the given address. */
   memset((void*) &addr_service, (int) '\0', sizeof(addr_service));
@@ -61,7 +67,7 @@ int main(int argc, char const *argv[]) {
 
   ret = bind(fd_service, (struct sockaddr*) &addr_service, sizeof(addr_service));
   if (ret == -1) {
-    printf("Error: bind \n");
+    printf("Error: bind\n");
 
     exit(1); /*error*/
   }
@@ -70,46 +76,68 @@ int main(int argc, char const *argv[]) {
   memset((void*) &addr_client, (int) '\0', sizeof(addr_client));
 
   while (exit_f == 0) {
-    /* Read user input. */
-    sel_in = parse_user_input(&service);
+    /* Prepare select, to monitor stdin and the sockets: central and service */
+    FD_ZERO(&rfds);
+    FD_SET(0, &rfds);
+    FD_SET(fd_central, &rfds);
+    FD_SET(fd_service, &rfds);
 
-    switch (sel_in) {
-      case IN_JOIN:
-        /* Regist server in central, with the input service. */
-        regist_on_central(service, fd_udp, id, addr_central, &my_id, ip, upt, tpt, &addrlen);
+    counter = select(max_fd+1, &rfds, (fd_set*) NULL, (fd_set*) NULL, (struct timeval *) NULL);
+    if (counter <= 0) {
+      printf("Error: select\n");
 
-        /* TODO: Join the service ring. */
-
-        break;
-      case IN_STATE:
-        /* TODO: print state. */
-
-        break;
-      case IN_LEAVE:
-        /* TODO: Leave the service ring. */
-
-        /* TODO: Withdraw from central service?? */
-
-        break;
-      case IN_EXIT:
-        /* TODO: "Gracefully" exit. */
-        exit(1);
-
-        break;
-      case IN_NO_JOIN:
-        printf("Error: Is already providing another service\n");
-        break
-      case IN_ERROR:
-        printf("Error: Invalid input\n");
-        break;
+      exit(1); /*error*/
     }
 
-    /* Respond to a client request. */
-    serve_client(fd_service, &addr_client);
+    if (FD_ISSET(fd_central, &rfds)) {
+      /* TODO: ignorar mensagem fora de tempo */
+
+    }
+
+    if (FD_ISSET(0, &rfds)) {
+      /* Read user input. */
+      sel_in = parse_user_input(&service);
+
+      switch (sel_in) {
+        case IN_JOIN:
+          /* Regist server in central, with the input service. */
+          regist_on_central(service, fd_central, id, addr_central, &my_id, ip, upt, tpt, &addrlen);
+
+          /* TODO: Join the service ring. */
+
+          break;
+        case IN_STATE:
+          /* TODO: print state. */
+
+          break;
+        case IN_LEAVE:
+          /* TODO: Leave the service ring. */
+
+          /* TODO: Withdraw from central service?? */
+
+          break;
+        case IN_EXIT:
+          /* TODO: "Gracefully" exit. */
+          exit(1);
+
+          break;
+        case IN_NO_JOIN:
+          printf("Error: Is already providing another service\n");
+          break;
+        case IN_ERROR:
+          printf("Error: Invalid input\n");
+          break;
+      }
+    }
+
+    if (FD_ISSET(fd_service, &rfds)) {
+      /* Respond to a client request. */
+      serve_client(fd_service, &addr_client);
+    }
   }
 
   /* Exit. */
-  close(fd_udp);
+  close(fd_central);
   close(fd_service);
 
   return 0;
@@ -223,7 +251,7 @@ int parse_user_input(int *service) {
   }
 }
 
-void regist_on_central(int service, int fd_udp, int id, struct sockaddr_in addr_central, int *my_id, char *ip, int upt, int tpt, socklen_t *addrlen) {
+void regist_on_central(int service, int fd_central, int id, struct sockaddr_in addr_central, int *my_id, char *ip, int upt, int tpt, socklen_t *addrlen) {
 
   char buffer[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR];
   int nsend, nrecv;
@@ -231,13 +259,13 @@ void regist_on_central(int service, int fd_udp, int id, struct sockaddr_in addr_
   /* Regist this service server in the central server (UDP). */
   /* get start server */
   sprintf(msg_out, "GET_START %d;%d", service, id);
-  nsend = sendto(fd_udp, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_central, sizeof(addr_central));
+  nsend = sendto(fd_central, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_central, sizeof(addr_central));
 	if( nsend == -1 ) {
     printf("Error: send");
     exit(1); /*error*/
   }
   *addrlen = sizeof(addr_central);
-	nrecv = recvfrom(fd_udp, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
+	nrecv = recvfrom(fd_central, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
 	if( nrecv == -1 ) {
     printf("Error: recv");
     exit(1); /*error*/
@@ -254,13 +282,13 @@ void regist_on_central(int service, int fd_udp, int id, struct sockaddr_in addr_
 
       /* set start */
       sprintf(msg_out, "SET_START %d;%d;%s;%d", service, id, ip, tpt);
-      nsend = sendto(fd_udp, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_central, sizeof(addr_central));
+      nsend = sendto(fd_central, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_central, sizeof(addr_central));
     	if( nsend == -1 ) {
         printf("Error: send");
         exit(1); /*error*/
       }
       *addrlen = sizeof(addr_central);
-    	nrecv = recvfrom(fd_udp, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
+    	nrecv = recvfrom(fd_central, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
     	if( nrecv == -1 ) {
         printf("Error: recv");
         exit(1); /*error*/
@@ -275,13 +303,13 @@ void regist_on_central(int service, int fd_udp, int id, struct sockaddr_in addr_
 
   /* Set the server to dispatch */
   sprintf(msg_out, "SET_DS %d;%d;%s;%d", service, id, ip, upt);
-  nsend = sendto(fd_udp, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_central, sizeof(addr_central));
+  nsend = sendto(fd_central, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_central, sizeof(addr_central));
   if( nsend == -1 ) {
     printf("Error: send");
     exit(1); /*error*/
   }
   *addrlen = sizeof(addr_central);
-  nrecv = recvfrom(fd_udp, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
+  nrecv = recvfrom(fd_central, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
   if( nrecv == -1 ) {
     printf("Error: recv");
     exit(1); /*error*/
