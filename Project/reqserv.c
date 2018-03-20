@@ -10,16 +10,16 @@
 #define MAX_STR 50
 #define DEFAULT_HOST "tejo.tecnico.ulisboa.pt"
 #define DEFAULT_PORT 59000
-enum input_type {IN_ERROR, IN_RS, IN_TS, IN_EXIT};
+enum input_type {IN_ERROR, IN_RS, IN_TS, IN_EXIT, IN_NO_RS, IN_NO_TS};
 
 void get_arguments(int argc, const char *argv[], char *csip, int *cspt);
 int parse_user_input(int *service);
-void request_service(int service, int fd_udp, int *fd_udp_serv, struct sockaddr_in addr_central, struct sockaddr_in *addr_service, socklen_t *addrlen, int *id, char *ip, int *upt);
+void request_service(int *service, int fd_udp, int *fd_udp_serv, struct sockaddr_in addr_central, struct sockaddr_in *addr_service, socklen_t *addrlen, int *id, char *ip, int *upt);
 void terminate_service(int fd_udp_serv, struct sockaddr_in addr_service, socklen_t *addrlen);
 
 int main(int argc, char const *argv[])
 {
-	int fd_udp, fd_udp_serv, cspt, service, id, upt, exit_f = 0, sel_in;
+	int fd_udp, fd_udp_serv, cspt, service = -1, id, upt, exit_f = 0, sel_in;
 	socklen_t addrlen;
 	struct sockaddr_in addr_central, addr_service;
 	char csip[MAX_STR], ip[MAX_STR];
@@ -43,17 +43,26 @@ int main(int argc, char const *argv[])
 
 		switch(sel_in){
 			case IN_RS:
-				request_service(service, fd_udp, &fd_udp_serv, addr_central, &addr_service, &addrlen, &id, ip, &upt);
+				request_service(&service, fd_udp, &fd_udp_serv, addr_central, &addr_service, &addrlen, &id, ip, &upt);
 				break;
 			case IN_TS:
 				terminate_service(fd_udp_serv, addr_service, &addrlen);
 				break;
 			case IN_EXIT:
 				exit_f = 1;
+				if (service != -1) {
+					terminate_service(fd_udp_serv, addr_service, &addrlen);
+				}
 				break;
 			case IN_ERROR:
 				printf("Error: Client interface\n");
 				exit(1);
+				break;
+			case IN_NO_RS:
+				printf("One service is already running\n");
+				break;
+			case IN_NO_TS:
+				printf("No service is running\n");
 				break;
 			}
 
@@ -120,13 +129,22 @@ int parse_user_input(int *service) {
   /* Parse input. */
   if (strcmp(cmd, "rs") == 0) {
     /* Request service x */
-		sscanf(buffer, "%*s %d", service);
-		return IN_RS;
+		if (*service == -1) {
+			sscanf(buffer, "%*s %d", service);
+			return IN_RS;
+		} else {
+			return IN_NO_RS;
+		}
 
 	} else if (strcmp(cmd, "ts") == 0) {
     /* Terminate service. */
-		*service = -1;
-		return IN_TS;
+		if (*service != -1) {
+			*service = -1;
+			return IN_TS;
+		} else {
+			return IN_NO_TS;
+		}
+
 
   } else if (strcmp(cmd, "exit") == 0) {
     /* Exit. */
@@ -139,12 +157,12 @@ int parse_user_input(int *service) {
 
 }
 
-void request_service(int service, int fd_udp, int *fd_udp_serv, struct sockaddr_in addr_central, struct sockaddr_in *addr_service, socklen_t *addrlen, int *id, char *ip, int *upt) {
+void request_service(int *service, int fd_udp, int *fd_udp_serv, struct sockaddr_in addr_central, struct sockaddr_in *addr_service, socklen_t *addrlen, int *id, char *ip, int *upt) {
   char msg_in[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR], *split, aux[3][MAX_STR];
   int nsend, nrecv, i = 0;
 
   /* Check if there is one server with the wanted service. */
-  sprintf(msg_out, "GET_DS_SERVER %d", service);
+  sprintf(msg_out, "GET_DS_SERVER %d", *service);
   nsend = sendto(fd_udp, msg_out, strlen(msg_out), 0, (struct sockaddr*) &addr_central, sizeof(addr_central));
 	if( nsend == -1 ) {
     printf("Error: send");
@@ -208,6 +226,7 @@ void request_service(int service, int fd_udp, int *fd_udp_serv, struct sockaddr_
       printf("%s\n", msg_in);
     } else {
       /* No server providing the Service */
+			*service = -1;
       printf("No server providing that service\n");
 
 			/*Error????*/

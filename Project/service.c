@@ -15,21 +15,22 @@
 #define DEFAULT_PORT 59000
 #define max(A,B) ((A)>=(B)?(A):(B))
 
-enum status {AVAILABLE, BUSY};
-enum input_type {IN_ERROR, IN_JOIN, IN_NO_JOIN, IN_STATE, IN_LEAVE, IN_EXIT};
+enum status {AVAILABLE, BUSY, IDLE};
+enum input_type {IN_ERROR, IN_JOIN, IN_NO_JOIN, IN_STATE, IN_LEAVE, IN_NO_LEAVE, IN_EXIT};
 
 void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt);
 int parse_user_input(int *service);
-void regist_on_central (int service, int fd_central, int id, struct sockaddr_in addr_central, int *my_id, char *ip, int upt, int tpt, socklen_t *addrlen);
-void serve_client (int fd_service, struct sockaddr_in *addr_client);
+void regist_on_central (int service, int fd_central, int id, int *id_start, struct sockaddr_in addr_central, int *my_id, char *ip, int upt, int tpt, socklen_t *addrlen);
+void serve_client (int fd_service, struct sockaddr_in *addr_client, enum status *my_status);
+void unregister_central (int id, int *id_start, int *service, int fd_central, struct sockaddr_in addr_central, socklen_t *addrlen);
 
 int main(int argc, char const *argv[]) {
-  int id, upt, tpt, cspt, service = -1, ret, sel_in, exit_f = 0, counter;
+  int id, id_start, upt, tpt, cspt, service = -1, ret, sel_in, exit_f = 0, counter;
   int fd_central, fd_service, my_id, max_fd=0;
   fd_set rfds;
   /*int nread, st_id, st_tpt;*/
   socklen_t addrlen;
-  enum status my_status;
+  enum status my_status = IDLE;
   char ip[MAX_STR], csip[MAX_STR];
   struct sockaddr_in addr_central, addr_service, addr_client;
 
@@ -101,28 +102,43 @@ int main(int argc, char const *argv[]) {
       switch (sel_in) {
         case IN_JOIN:
           /* Regist server in central, with the input service. */
-          regist_on_central(service, fd_central, id, addr_central, &my_id, ip, upt, tpt, &addrlen);
-
+          regist_on_central(service, fd_central, id, &id_start, addr_central, &my_id, ip, upt, tpt, &addrlen);
+          my_status = AVAILABLE;
           /* TODO: Join the service ring. */
 
           break;
         case IN_STATE:
           /* TODO: print state. */
-
+          switch (my_status) {
+            case AVAILABLE:
+              printf("AVAILABLE\n");
+              break;
+            case BUSY:
+              printf("BUSY\n");
+              break;
+            case IDLE:
+              printf("IDLE\n");
+              break;
+            }
           break;
         case IN_LEAVE:
           /* TODO: Leave the service ring. */
 
-          /* TODO: Withdraw from central service?? */
-
+          unregister_central(id, &id_start, &service, fd_central, addr_central, &addrlen);
+          my_status = IDLE;
           break;
         case IN_EXIT:
-          /* TODO: "Gracefully" exit. */
-          exit(1);
-
+          exit_f = 1;
+          /*When you exit the api we have to unregister the server, otherwise it will be rubbish in the server*/
+          if (my_status != IDLE) {
+            unregister_central(id, &id_start, &service, fd_central, addr_central, &addrlen);
+          }
           break;
         case IN_NO_JOIN:
           printf("Error: Is already providing another service\n");
+          break;
+        case IN_NO_LEAVE:
+          printf("Error: Not providing any service\n");
           break;
         case IN_ERROR:
           printf("Error: Invalid input\n");
@@ -132,7 +148,7 @@ int main(int argc, char const *argv[]) {
 
     if (FD_ISSET(fd_service, &rfds)) {
       /* Respond to a client request. */
-      serve_client(fd_service, &addr_client);
+      serve_client(fd_service, &addr_client, &my_status);
     }
   }
 
@@ -237,9 +253,11 @@ int parse_user_input(int *service) {
   } else if (strcmp(cmd, "leave") == 0) {
     /* Leave the service ring. */
 
-    *service = -1;
-
-    return IN_LEAVE;
+    if(*service != -1){
+      return IN_LEAVE;
+    } else {
+      return IN_NO_LEAVE;
+    }
   } else if (strcmp(cmd, "exit") == 0) {
     /* Exit. */
 
@@ -251,7 +269,7 @@ int parse_user_input(int *service) {
   }
 }
 
-void regist_on_central(int service, int fd_central, int id, struct sockaddr_in addr_central, int *my_id, char *ip, int upt, int tpt, socklen_t *addrlen) {
+void regist_on_central(int service, int fd_central, int id, int *id_start, struct sockaddr_in addr_central, int *my_id, char *ip, int upt, int tpt, socklen_t *addrlen) {
 
   char buffer[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR];
   int nsend, nrecv;
@@ -295,9 +313,11 @@ void regist_on_central(int service, int fd_central, int id, struct sockaddr_in a
       }
       buffer[nrecv] = '\0';
       printf("%s\n", buffer);
+
+      *id_start = id;
     } else {
       /* Save the start server. */
-
+      *id_start = *my_id;
     }
   }
 
@@ -318,7 +338,48 @@ void regist_on_central(int service, int fd_central, int id, struct sockaddr_in a
   printf("%s\n", buffer);
 }
 
-void serve_client(int fd_service, struct sockaddr_in *addr_client) {
+void unregister_central (int id, int *id_start, int *service, int fd_central, struct sockaddr_in addr_central, socklen_t *addrlen) {
+  char buffer[MAX_STR], msg_out[MAX_STR];
+  int nsend, nrecv;
+
+  if(id == *id_start) {
+    sprintf(msg_out, "WITHDRAW_START %d;%d", *service, id);
+    nsend = sendto(fd_central, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_central, sizeof(addr_central));
+    if( nsend == -1 ) {
+      printf("Error: send");
+      exit(1); /*error*/
+    }
+    *addrlen = sizeof(addr_central);
+    nrecv = recvfrom(fd_central, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
+    if( nrecv == -1 ) {
+      printf("Error: recv");
+      exit(1); /*error*/
+    }
+    buffer[nrecv] = '\0';
+    printf("%s\n", buffer);
+
+  }
+
+  sprintf(msg_out, "WITHDRAW_DS %d;%d", *service, id);
+  nsend = sendto(fd_central, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_central, sizeof(addr_central));
+  if( nsend == -1 ) {
+    printf("Error: send");
+    exit(1); /*error*/
+  }
+  *addrlen = sizeof(addr_central);
+  nrecv = recvfrom(fd_central, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
+  if( nrecv == -1 ) {
+    printf("Error: recv");
+    exit(1); /*error*/
+  }
+  buffer[nrecv] = '\0';
+  printf("%s\n", buffer);
+
+  *service = -1;
+
+}
+
+void serve_client(int fd_service, struct sockaddr_in *addr_client, enum status *my_status) {
   int ret, nread;
   socklen_t addrlen;
   char toggle[MAX_STR], msg_in[MAX_STR], msg_out[MAX_STR];
@@ -337,10 +398,12 @@ void serve_client(int fd_service, struct sockaddr_in *addr_client) {
     sprintf(msg_out, "YOUR_SERVICE ON");
     ret = sendto(fd_service,msg_out, strlen(msg_out), 0, (struct sockaddr*) addr_client, addrlen);
     if (ret==-1) exit(1); /*error*/
+    *my_status = BUSY;
   } else if (strcmp(toggle, "OFF") == 0) {
     sprintf(msg_out, "YOUR_SERVICE OFF");
     ret = sendto(fd_service, msg_out, strlen(msg_out), 0, (struct sockaddr*) addr_client, addrlen);
     if (ret==-1) exit(1); /*error*/
+    *my_status = AVAILABLE;
   } else {
     /* TODO: invalid message. */
   }
