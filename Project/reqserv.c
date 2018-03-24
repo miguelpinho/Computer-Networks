@@ -158,8 +158,8 @@ int parse_user_input(int *service) {
 }
 
 void request_service(int *service, int fd_udp, int *fd_udp_serv, struct sockaddr_in addr_central, struct sockaddr_in *addr_service, socklen_t *addrlen, int *id, char *ip, int *upt) {
-  char msg_in[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR], *split, aux[3][MAX_STR];
-  int nsend, nrecv, i = 0;
+  char msg_in[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR];
+  int nsend, nrecv;
 
   /* Check if there is one server with the wanted service. */
   sprintf(msg_out, "GET_DS_SERVER %d", *service);
@@ -185,7 +185,9 @@ void request_service(int *service, int fd_udp, int *fd_udp_serv, struct sockaddr
     /* Service found */
     if (strcmp(msg_data, "0.0.0.0;0") != 0 && *id != 0) {
 
-			split = strtok(msg_data, ";");
+			sscanf(msg_data, "%[^;];%d", ip, upt);
+
+			/*split = strtok(msg_data, ";");
 			while (split != NULL)
 			{
 		    strcpy(aux[i], split);
@@ -194,7 +196,7 @@ void request_service(int *service, int fd_udp, int *fd_udp_serv, struct sockaddr
 		  }
 
 			strcpy(ip, aux[0]);
-			sscanf(aux[1], "%d", upt);
+			sscanf(aux[1], "%d", upt);*/
 
       printf("dummy req: %d;%s;%d\n", *id, ip, *upt);
 
