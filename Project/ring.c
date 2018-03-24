@@ -1,29 +1,90 @@
 /*
   authors: Miguel "the white" Malaca, Miguel "Baggins" Pinho
   one ring to serve them all
-*/
 
-struct state_fellow {
-  int start;
-  int available;
-  int ring_unavailable;
-  int dispatch;
-}
+  description:
+    functions for ring and availability management
+*/
 
 /* next server in the fellowship ring */
 struct next_fellow {
   int id;
   char ip[MAX_STR];
   int tpt;
+  int fd_next;
 };
 
+/* state and sockets each fellow stores */
+struct fellow {
+  /* address */
+  int id, tpt;
+  char ip[MAX_STR];
+
+  /* state */
+  int start, available, ring_unavailable, dispatch;
+
+  /* next */
+  struct next_fellow next;
+
+  /* sockets */
+  int fd_listen, fd_prev;
+  int fd_aux; /* for ring transient states */
+}
+
+void new_fellow(struct fellow *this, int id, char *ip, int tpt) {
+  struct sockaddr_in addr_fellow;
+
+  /* store id and address */
+  this->id = id;
+  strncpy(this->ip, ip, MAX_STR-1);
+  this->tpt = tpt;
+
+  /* FIXME: initialize state variables */
+  start = -1;
+  available = -1;
+  ring_available = -1;
+  dispatch = -1;
+
+  /* FIXME: set next to none */
+  this->next.id = -1;
+
+  /* create listen socket */
+  if ((this->fd_listen = socket(AF_INET,SOCK_STREAM,0)) == -1) {
+    exit(1); /* error */
+  }
+
+  memset((void*) &addr_fellow, (int) '\0', sizeof(addr_fellow));
+
+  addr_fellow.sin_family = AF_INET;
+  addr_fellow.sin_addr.s_addr = htonl(INADDR_ANY);
+  addr_fellow.sin_port = htons(tpt);
+
+  if (bind(this->fd_listen, (struct sockaddr*) &addr_fellow, sizeof(addr_fellow)) == -1) {
+    exit(1); /* error */
+  }
+}
+
+void destroy_fellow(struct fellow *this) {
+  /* close sockets */
+  close(this->next.fd_next);
+  close(this->fd_listen);
+  close(this->fd_prev);
+  close(this->fd_aux);
+}
+
+void send_token() {
+
+
+}
+
 /*****STEP 2 BEGIN: ring maintenance*****/
-void enter_ring() {
-  /* set next to start server */
+void join_ring() {
+  /* connect to start server */
 
   /* how does it communicate it is available??? send D anyway? */
 
   /* wait for connection? */
+  /* listen?? */
 
 }
 
@@ -76,10 +137,6 @@ void token_exit() {
     /* pass the E token */
 
 }
-
-void send_token() {
-
-}
 /*****STEP 2 END*****/
 
 /*****STEP 3 BEGIN: manage availability*****/
@@ -96,7 +153,7 @@ void become_unavailable() {
 
   /* else */
     /* creates and sends S token to next */
-    
+
 }
 
 void token_search() {
