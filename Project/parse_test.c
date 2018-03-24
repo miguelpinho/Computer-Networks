@@ -22,8 +22,6 @@ int id, tpt, id2;
     return 1;
   }
 
-
-
   sscanf(buffer, "%s %s", msg_type, msg_data);
 
   printf("%s\n", msg_type);
