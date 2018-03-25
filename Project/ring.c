@@ -78,16 +78,18 @@ void send_token() {
 }
 
 /*****STEP 2 BEGIN: ring maintenance*****/
+/* GET_start is not null */
 void join_ring() {
   /* connect to start server */
-
-  /* how does it communicate it is available??? send D anyway? */
 
   /* wait for connection? */
   /* listen?? */
 
+  /* how does it communicate it is available??? send D anyway? */
+  /* FIXME: ask Saruman */
 }
 
+/* Start accepted new tcp */
 void new_arrival_ring() {
   /* if (there is a next) */
     /* conects itself to the new fellow */
@@ -99,6 +101,7 @@ void new_arrival_ring() {
 
 }
 
+/* Receives token new */
 void token_new(int id, int id2, char *ip, int tpt) {
   /* if (id == next) */
     /* connect to id2 */
@@ -108,6 +111,7 @@ void token_new(int id, int id2, char *ip, int tpt) {
 
 }
 
+/* User input exit */
 void exit_ring() {
   /* if (start) */
     /* withdraw start */
@@ -123,6 +127,7 @@ void exit_ring() {
   /* wait for disconnect? */
 }
 
+/* Receives token exit */
 void token_exit() {
   /* if (id == next) */
     /* if (id2 == self) */
