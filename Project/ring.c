@@ -81,8 +81,11 @@ char msg_out[MAX_STR], buffer[MAX_STR];
     case 'S': case 'T': case 'I': case 'D':
       sprintf(msg_out, "TOKEN %d;%c\n", fellow.id, token_type);
       break;
-    case 'N': case 'O':
+    case 'N':
       sprintf(msg_out, "%d;%c;%d;%s;%d\n", id_start, token_type, id2, ip, tpt);
+      break;
+    case 'O':
+      sprintf(msg_out, "%d;%c;%d;%s;%d\n", fellow.id, token_type, fellow.next.id, fellow.next.ip, fellow.next.tpt);
       break;
     default:
       printf("Error: Token type not known\n");
@@ -236,9 +239,12 @@ void token_new(struct fellow *fellow, int id2, char *ip, int tpt) {
 }
 
 /* User input exit */
-void exit_ring() {
+void exit_ring( struct fellow *fellow, int id_start) {
   /* if (start) */
     /* withdraw start */
+  if ( felow->id == id_start) {
+
+  }
 
     /* if (next is null) */
       /* return (ring is over) */
