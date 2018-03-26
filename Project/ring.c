@@ -164,11 +164,11 @@ void join_ring( struct fellow *fellow , int tpt_start , char *ip_start, int id_s
 
 /* Start accepted new tcp */
 void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_new, int id_start) {
-  /* if (there is a next) */
-    /* conects itself to the new fellow */
+  /* Fellow received a tcp connection to it. */
+  /* Only makes sense if this is start? Check? */
 
-  if(fellow->next.id == id_start) {
-
+  if (fellow->next.id == -1) {
+    /* Start was alone in the ring. Connect it to the new. */
 
     fellow->next.id = id_new;
     fellow->next.tpt = tpt_new;
@@ -181,30 +181,36 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
     addr_new.sin_addr.s_addr = inet_addr(ip_new);
     addr_new.sin_port = htons(tpt);
 
-    n=connect(fellow->next.fd_next, (struct sockaddr*)&addr_new,sizeof(addr_new));
-    if(n==-1) exit(1); /* error */
+    n = connect(fellow->next.fd_next, (struct sockaddr*)&addr_new,sizeof(addr_new));
+    if (n==-1) {
+      exit(1); /* error */
+    }
 
-    /* desconnection from tail ???? TODO*/
-
-    /* else */
-      /* passes the token*/
+    /* desconnection from tail ???? TODO acho q isto não faz sentido */
 
   } else {
+    /* There are more fellows in the ring. Pass token to warn tail. */
 
     send_token('N', *fellow, id_new, ip_new, tpt_new, id_start);
 
+    /* TODO: wait for desconnection from tail?? */
   }
-
-
-    /* wait for desconnection from tail?? */
 
 }
 
 /* Receives token new */
 void token_new(struct fellow *fellow, int id2, char *ip, int tpt) {
-  /* if (id == next) */
-    /* connect to id2 */
-    if(fellow->next.id == -1) {
+  int fd_destroy; /* Tmp, for connection to start to delete */
+
+    if(fellow->next.id == id_start) {
+      /* This element is the tail of the ring. */
+
+      /* FIXME: is order of connect and disconnect important??? */
+      /* Disconnect from the start. */
+      fellow->next.id = -1;
+      close(fellow->next.fd_next);
+
+      /* Connect to the new element. */
       fellow->next.id = id_new;
       fellow->next.tpt = tpt_new;
       strcpy(fellow->next.ip, ip_new);
@@ -216,16 +222,16 @@ void token_new(struct fellow *fellow, int id2, char *ip, int tpt) {
       addr_new.sin_addr.s_addr = inet_addr(ip);
       addr_new.sin_port = htons(tpt);
 
-      n=connect(fellow->next.fd_next, (struct sockaddr*)&addr_new,sizeof(addr_new));
-    	if(n==-1) exit(1); /* error */
-
-  /* else */
-    /* pass token to next */
+      n = connect(fellow->next.fd_next, (struct sockaddr*)&addr_new,sizeof(addr_new));
+    	if (n==-1) {
+        exit(1); /* error */
+      }
 
     } else {
+      /* This is not the tail. Pass the token. */
+
       send_token('N', *fellow, id2, ip, tpt);
     }
-
 
 }
 
