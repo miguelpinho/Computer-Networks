@@ -25,7 +25,7 @@ int id, tpt, id2;
   sscanf(buffer, "%s %s", msg_type, msg_data);
 
   printf("%s\n", msg_type);
-    printf("%s\n", msg_data);
+  printf("%s\n", msg_data);
 
   if (strcmp(msg_type, "TOKEN") == 0) {
     sscanf(msg_data, "%d;%c",&id, &token_type);
@@ -44,7 +44,7 @@ int id, tpt, id2;
         break;
     }
   } else if (strcmp(msg_type, "NEW")== 0) {
-    sscanf(msg_data, "%d;%[^; ];%d", &id, ip, &tpt);
+    sscanf(msg_data, "%d;%[^;];%d", &id, ip, &tpt);
 
   } else if (strcmp(msg_type, "NEW_START") == 0)   {
 
