@@ -189,8 +189,6 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
       exit(1); /* error */
     }
 
-    /* desconnection from tail ???? TODO acho q isto não faz sentido */
-
   } else {
     /* There are more fellows in the ring. Pass token to warn tail. */
 
@@ -239,39 +237,149 @@ void token_new(struct fellow *fellow, int id2, char *ip, int tpt) {
 }
 
 /* User input exit */
-void exit_ring( struct fellow *fellow, int id_start) {
+int exit_ring( struct fellow fellow, int id_start, int fd_udp, int service, struct sockaddr addr_central) {
   /* if (start) */
     /* withdraw start */
-  if ( felow->id == id_start) {
+  if ( felow.id == id_start) {
+
+    /* Check if there is one server with the wanted service. */
+    sprintf(msg_out, "WITHDRAW_START %d;%d", service, fellow.id);
+    nsend = sendto(fd_udp, msg_out, strlen(msg_out), 0, (struct sockaddr*) &addr_central, sizeof(addr_central));
+  	if( nsend == -1 ) {
+      printf("Error: send");
+      exit(1); /*error*/
+    }
+    *addrlen = sizeof(addr_central);
+  	nrecv = recvfrom(fd_udp, msg_in, 128, 0, (struct sockaddr*) &addr_central, addrlen);
+  	if( nrecv == -1 ) {
+      printf("Error: recv");
+      exit(1); /*error*/
+    }
+    msg_in[nrecv] = '\0';
+    printf("%s\n", msg_in);
 
   }
 
     /* if (next is null) */
       /* return (ring is over) */
+  if (fellow.next.id == -1) {
+    /* Ring is over */
+    return 0;
 
     /* else */
       /* set next as start */
+  } else {
+    /* This is wrong, it has to send the new_start message */
+    sprintf(msg_out, "SET_START %d;%d;%s;%d", service, fellow.next.id, fellow.next.ip, fellow.next.tpt);
+    nsend = sendto(fd_udp, msg_out, strlen(msg_out), 0, (struct sockaddr*) &addr_central, sizeof(addr_central));
+  	if( nsend == -1 ) {
+      printf("Error: send");
+      exit(1); /*error*/
+    }
+    *addrlen = sizeof(addr_central);
+  	nrecv = recvfrom(fd_udp, msg_in, 128, 0, (struct sockaddr*) &addr_central, addrlen);
+  	if( nrecv == -1 ) {
+      printf("Error: recv");
+      exit(1); /*error*/
+    }
+    msg_in[nrecv] = '\0';
+    printf("%s\n", msg_in);
+  }
 
   /* pass token exit */
+  send_token('O', fellow, 0, "0", 0, 0, 0);
 
   /* wait for disconnect? */
 }
 
 /* Receives token exit */
-void token_exit() {
+void token_exit(struct fellow *fellow, int id_out, int id_next, int tpt2, char *ip2) {
   /* if (id == next) */
     /* if (id2 == self) */
       /* disconnect from next */
       /* set next to null */
+  if (id_out == fellow->next.id) {
+    if (fellow.id == id_next) {
+      close(fellow->next.fd_next);
+      fellow->next.id = -1;
+    } else {
+      /* else *
+        /* disconnect id */
+        /* connect to id2 */
+      close(fellow->next.fd_next);
+      fellow->next.id = id2;
+      strcpy(fellow->next.ip, ip2);
+      fellow->next.tpt = tpt2;
 
-    /* else *
-      /* disconnect id */
-      /* connect to id2 */
+      fellow->next.fd_next=socket(AF_INET,SOCK_STREAM,0); //TCP socket
+    	if(fellow->next.fd_next==-1) exit(1);/* error */
 
-  /* else */
-    /* pass the E token */
+      addr_new.sin_family = AF_INET;
+      addr_new.sin_addr.s_addr = inet_addr(ip2);
+      addr_new.sin_port = htons(tpt2);
+
+      n = connect(fellow->next.fd_next, (struct sockaddr*)&addr_new,sizeof(addr_new));
+    	if (n==-1) {
+        exit(1); /* error */
+      }
+
+    }
+  } else {
+    /* else */
+      /* pass the O token */
+    send_token('O', fellow, 0, "0", 0, 0, 0);
+  }
+
+
+
 
 }
+
+void process_message (char *msg, struct fellow *fellow) {
+
+  char buffer[MAX_STR], msg_data[MAX_STR], msg_type[MAX_STR], token_type, ip[MAX_STR];
+  int id, tpt, id2;
+
+  sscanf(msg, "%s %s", msg_type, msg_data);
+
+  if (strcmp(msg_type, "TOKEN") == 0) {
+    sscanf(msg_data, "%d;%c",&id, &token_type);
+
+    printf("%c\n", token_type);
+
+    switch (token_type) {
+      case 'S': case 'T': case 'I': case 'D':
+        /*TODO*/
+        break;
+      case 'N':
+        sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d", &id2, ip, &tpt);
+        token_new(fellow, id2, ip, tpt);
+        break;
+      case 'O':
+        sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d", &id2, ip, &tpt);
+        token_exit(fellow, id, id2, tpt, ip);
+        break;
+      default:
+        printf("Error: Token type not known\n");
+        return 1;
+        break;
+    }
+  } else if (strcmp(msg_type, "NEW")== 0) {
+    sscanf(msg_data, "%d;%[^;];%d", &id, ip, &tpt);
+    new_arrival_ring(fellow, id, tpt, ip, fellow.id);
+  } else if (strcmp(msg_type, "NEW_START") == 0)   {
+
+  } else {
+    printf("Error: Message not known\n");
+    return 0;
+  }
+
+
+  printf("%d %s %d %d \n", id, ip, id2, tpt);
+  return 1;
+}
+}
+
 /*****STEP 2 END*****/
 
 /*****STEP 3 BEGIN: manage availability*****/

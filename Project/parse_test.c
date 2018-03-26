@@ -31,7 +31,7 @@ int id, tpt, id2;
     sscanf(msg_data, "%d;%c",&id, &token_type);
 
     printf("%c\n", token_type);
-/*TODO*/
+
     switch (token_type) {
       case 'S': case 'T': case 'I': case 'D':
         break;
