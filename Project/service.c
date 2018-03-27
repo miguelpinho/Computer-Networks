@@ -26,13 +26,14 @@ void unregister_central (int id, int *id_start, int *service, int fd_central, st
 
 int main(int argc, char const *argv[]) {
   int id, id_start, upt, tpt, cspt, service = -1, ret, sel_in, exit_f = 0, counter;
-  int fd_central, fd_service, my_id, max_fd=0;
+  int fd_central, fd_service, my_id, max_fd = 0;
   fd_set rfds;
   /*int nread, st_id, st_tpt;*/
   socklen_t addrlen;
   enum status my_status = IDLE;
   char ip[MAX_STR], csip[MAX_STR];
   struct sockaddr_in addr_central, addr_service, addr_client;
+  struct fellow fellow;
 
   get_arguments(argc, argv, &id, ip, &upt, &tpt, csip, &cspt);
 
@@ -44,7 +45,6 @@ int main(int argc, char const *argv[]) {
     printf("Error: socket central");
     exit(1); /*error*/
   }
-  max_fd = max(max_fd, fd_central);
 
   /* Create address of the central server. */
   memset((void*) &addr_central, (int) '\0', sizeof(addr_central));
@@ -58,7 +58,6 @@ int main(int argc, char const *argv[]) {
     printf("Error: socket serving");
     exit(1); /*error*/
   }
-  max_fd = max(max_fd, fd_service);
 
   /* Binds client serving socket to the given address. */
   memset((void*) &addr_service, (int) '\0', sizeof(addr_service));
@@ -73,6 +72,8 @@ int main(int argc, char const *argv[]) {
     exit(1); /*error*/
   }
 
+  new_fellow(&fellow, id, ip, tpt);
+
   /* Adress of the client being served. */
   memset((void*) &addr_client, (int) '\0', sizeof(addr_client));
 
@@ -80,8 +81,13 @@ int main(int argc, char const *argv[]) {
     /* Prepare select, to monitor stdin and the sockets: central and service */
     FD_ZERO(&rfds);
     FD_SET(0, &rfds);
-    FD_SET(fd_central, &rfds);
-    FD_SET(fd_service, &rfds);
+    FD_SET(fd_central, &rfds); max_fd = fd_central;
+    FD_SET(fd_service, &rfds); max_fd = max(max_fd, fd_service);
+    if (!fellow.nw_arrival_flag) {
+      FD_SET(fellow.fd_listen, &rfds); max_fd = max(max_fd, fellow.fd_listen);
+    } else () {
+      FD_SET(fellow.fd_, &rfds); max_fd = max(max_fd, fellow.fd_listen);
+    }
 
     counter = select(max_fd+1, &rfds, (fd_set*) NULL, (fd_set*) NULL, (struct timeval *) NULL);
     if (counter <= 0) {
@@ -93,6 +99,12 @@ int main(int argc, char const *argv[]) {
     if (FD_ISSET(fd_central, &rfds)) {
       /* TODO: ignorar mensagem fora de tempo */
 
+      /* Accept new fellow. */
+      if ((fellow.fd_aux = accept(fellow->fd_listen, (struct sockaddr*) &addr, &addrlen)) == -1) {
+        exit(1); /* error */
+      }
+
+      fellow.nw_arrival_flag = 1;
     }
 
     if (FD_ISSET(0, &rfds)) {
@@ -148,7 +160,13 @@ int main(int argc, char const *argv[]) {
 
     if (FD_ISSET(fd_service, &rfds)) {
       /* Respond to a client request. */
+
       serve_client(fd_service, &addr_client, &my_status);
+    }
+
+    if (FD_ISSET(fellow.fd_listen, &rfds)) {
+      /* A fellow is trying to connect to this one. */
+
     }
   }
 
