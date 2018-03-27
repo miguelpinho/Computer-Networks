@@ -10,6 +10,7 @@
 #include <string.h>
 
 #define MAX_STR 50
+#define SUPER_STR 400
 #define USAGE "service –n id –j ip -u upt –t tpt [-i csip] [-p cspt]"
 #define DEFAULT_HOST "tejo.tecnico.ulisboa.pt"
 #define DEFAULT_PORT 59000
@@ -34,6 +35,8 @@ int main(int argc, char const *argv[]) {
   char ip[MAX_STR], csip[MAX_STR];
   struct sockaddr_in addr_central, addr_service, addr_client;
   struct fellow fellow;
+  char big_buffer[SUPER_STR], small_buffer[MAX_STR];
+  int ptr_big = 0, ptr_small;
 
   get_arguments(argc, argv, &id, ip, &upt, &tpt, csip, &cspt);
 
@@ -86,7 +89,7 @@ int main(int argc, char const *argv[]) {
     if (!fellow.nw_arrival_flag) {
       FD_SET(fellow.fd_listen, &rfds); max_fd = max(max_fd, fellow.fd_listen);
     } else () {
-      FD_SET(fellow.fd_, &rfds); max_fd = max(max_fd, fellow.fd_listen);
+      FD_SET(fellow.fd_nw_arrival, &rfds); max_fd = max(max_fd, fellow.fd_nw_arrival);
     }
 
     counter = select(max_fd+1, &rfds, (fd_set*) NULL, (fd_set*) NULL, (struct timeval *) NULL);
@@ -99,12 +102,6 @@ int main(int argc, char const *argv[]) {
     if (FD_ISSET(fd_central, &rfds)) {
       /* TODO: ignorar mensagem fora de tempo */
 
-      /* Accept new fellow. */
-      if ((fellow.fd_aux = accept(fellow->fd_listen, (struct sockaddr*) &addr, &addrlen)) == -1) {
-        exit(1); /* error */
-      }
-
-      fellow.nw_arrival_flag = 1;
     }
 
     if (FD_ISSET(0, &rfds)) {
@@ -164,10 +161,32 @@ int main(int argc, char const *argv[]) {
       serve_client(fd_service, &addr_client, &my_status);
     }
 
-    if (FD_ISSET(fellow.fd_listen, &rfds)) {
-      /* A fellow is trying to connect to this one. */
+    if (!fellow.nw_arrival_flag) {
+      if (FD_ISSET(fellow.fd_listen, &rfds)) {
+        /* A fellow is trying to connect to this one. */
+        if (!fellow.start) {
+          /* Out of time connection. Only makes sense if this is start? */
+          /* TODO */
+        }
 
+        /* Accept new fellow. */
+        if ((fellow.fd_aux = accept(fellow->fd_listen, (struct sockaddr*) &addr, &addrlen)) == -1) {
+          exit(1); /* error */
+        }
+
+        fellow.nw_arrival_flag = 1;
+      }
+    } else {
+      if (FD_ISSET(fellow.fd_nw_arrival, &rfds)) {
+        /* Receiving first message from new. */
+        while((n=read(newfd,buffer,128))!=0){
+         if(n==-1)exit(1);//error
+            ptr=&buffer[0];
+
+         }
+      }
     }
+
   }
 
   /* Exit. */

@@ -160,7 +160,6 @@ void join_ring( struct fellow *fellow , int tpt_start , char *ip_start, int id_s
 /* Tcp listen port triggered. */
 void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_new, int id_start) {
   /* Fellow received a tcp connection to it. */
-  /* Only makes sense if this is start? Check? */
 
   /* Accept new fellow. */
   if ((fellow->fd_prev = accept(fellow->fd_listen, (struct sockaddr*) &addr, &addrlen)) == -1) {
