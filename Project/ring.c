@@ -270,20 +270,19 @@ int exit_ring( struct fellow fellow, int id_start, int fd_udp, int service, stru
       /* set next as start */
   } else {
     /* This is wrong, it has to send the new_start message */
-    sprintf(msg_out, "SET_START %d;%d;%s;%d", service, fellow.next.id, fellow.next.ip, fellow.next.tpt);
-    nsend = sendto(fd_udp, msg_out, strlen(msg_out), 0, (struct sockaddr*) &addr_central, sizeof(addr_central));
-  	if( nsend == -1 ) {
-      printf("Error: send");
-      exit(1); /*error*/
-    }
-    *addrlen = sizeof(addr_central);
-  	nrecv = recvfrom(fd_udp, msg_in, 128, 0, (struct sockaddr*) &addr_central, addrlen);
-  	if( nrecv == -1 ) {
-      printf("Error: recv");
-      exit(1); /*error*/
-    }
-    msg_in[nrecv] = '\0';
-    printf("%s\n", msg_in);
+    sprintf(msg_out, "NEW_START\n");
+
+    ptr=strcpy(buffer, msg_out);
+  	nbytes=strlen(msg_out);
+
+  	nleft=nbytes;
+  	while(nleft>0) {
+  		nwritten=write(fellow.next.fd_next,ptr,nleft);
+  		if(nwritten<=0) exit(1);//error
+
+  		nleft-=nwritten;
+  		ptr+=nwritten;
+  	}
   }
 
   /* pass token exit */
@@ -329,13 +328,28 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, int tpt2, char *
       /* pass the O token */
     send_token('O', fellow, 0, "0", 0, 0, 0);
   }
-
-
-
-
 }
 
-void process_message (char *msg, struct fellow *fellow) {
+/*When a server receivs the new start token*/
+void token_newstart( struct fellow fellow , int service, int fd_central , struct sockaddr addr_central) {
+
+  sprintf(msg_out, "SET_START %d;%d;%s;%d", service, fellow.id, fellow.ip, fellow.tpt);
+  nsend = sendto(fd_udp, msg_out, strlen(msg_out), 0, (struct sockaddr*) &addr_central, sizeof(addr_central));
+  if( nsend == -1 ) {
+    printf("Error: send");
+    exit(1); /*error*/
+  }
+  *addrlen = sizeof(addr_central);
+  nrecv = recvfrom(fd_udp, msg_in, 128, 0, (struct sockaddr*) &addr_central, addrlen);
+  if( nrecv == -1 ) {
+    printf("Error: recv");
+    exit(1); /*error*/
+  }
+  msg_in[nrecv] = '\0';
+  printf("%s\n", msg_in);
+}
+
+void process_message (char *msg, struct fellow *fellow, int fd_central, struct sockaddr addr_central) {
 
   char buffer[MAX_STR], msg_data[MAX_STR], msg_type[MAX_STR], token_type, ip[MAX_STR];
   int id, tpt, id2;
@@ -365,10 +379,10 @@ void process_message (char *msg, struct fellow *fellow) {
         break;
     }
   } else if (strcmp(msg_type, "NEW")== 0) {
-    sscanf(msg_data, "%d;%[^;];%d", &id, ip, &tpt);
-    new_arrival_ring(fellow, id, tpt, ip, fellow.id);
+      sscanf(msg_data, "%d;%[^;];%d", &id, ip, &tpt);
+      new_arrival_ring(fellow, id, tpt, ip, fellow.id);
   } else if (strcmp(msg_type, "NEW_START") == 0)   {
-
+      token_newstart(fellow, service, fd_central, addr_central);
   } else {
     printf("Error: Message not known\n");
     return 0;
@@ -378,7 +392,8 @@ void process_message (char *msg, struct fellow *fellow) {
   printf("%d %s %d %d \n", id, ip, id2, tpt);
   return 1;
 }
-}
+
+
 
 /*****STEP 2 END*****/
 
