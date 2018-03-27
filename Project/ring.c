@@ -9,7 +9,7 @@
 #include "ring.h"
 
 void new_fellow(struct fellow *this, int id, char *ip, int tpt) {
-  struct sockaddr_in addr_fellow;
+struct sockaddr_in addr_fellow;
 
   /* store id and address */
   this->id = id;
