@@ -319,14 +319,14 @@ int parse_user_input(int *service) {
   }
 }
 
-void regist_on_central(int service, int fd_central, int id, int *id_start, struct sockaddr_in addr_central, int *my_id, char *ip, int upt, int tpt, socklen_t *addrlen) {
+void regist_on_central(int service, int fd_central, int *id_start, struct sockaddr_in addr_central, int *my_id, int tpt, socklen_t *addrlen, struct fellow fellow) {
 
   char buffer[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR];
   int nsend, nrecv;
 
   /* Regist this service server in the central server (UDP). */
   /* get start server */
-  sprintf(msg_out, "GET_START %d;%d", service, id);
+  sprintf(msg_out, "GET_START %d;%d", service, fellow.id);
   nsend = sendto(fd_central, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_central, sizeof(addr_central));
 	if( nsend == -1 ) {
     printf("Error: send");
@@ -341,15 +341,16 @@ void regist_on_central(int service, int fd_central, int id, int *id_start, struc
   buffer[nrecv] = '\0';
   printf("%s\n", buffer);
 
-  sscanf(buffer, "%s %d;%s", msg_type, my_id, msg_data);
+  sscanf(buffer, "%s %s", msg_type, msg_data);
   if (strcmp(msg_type, "OK") != 0) {
     printf("Erro: msg\n");
   } else {
-    if (strcmp(msg_data, "0;0.0.0.0;0") == 0) {
+    sprintf(test_data, "%d;0;0.0.0.0;0", fellow.id);
+    if (strcmp(msg_data, test_data) == 0) {
       /* This is the start server. */
 
       /* set start */
-      sprintf(msg_out, "SET_START %d;%d;%s;%d", service, id, ip, tpt);
+      sprintf(msg_out, "SET_START %d;%d;%s;%d", service, fellow.id, fellow.ip, fellow.tpt);
       nsend = sendto(fd_central, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_central, sizeof(addr_central));
     	if( nsend == -1 ) {
         printf("Error: send");
@@ -365,27 +366,33 @@ void regist_on_central(int service, int fd_central, int id, int *id_start, struc
       printf("%s\n", buffer);
 
       *id_start = id;
+
+      /* Set the server to dispatch */
+      sprintf(msg_out, "SET_DS %d;%d;%s;%d", service, fellow.id, fellow.ip, upt);
+      nsend = sendto(fd_central, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_central, sizeof(addr_central));
+      if( nsend == -1 ) {
+        printf("Error: send");
+        exit(1); /*error*/
+      }
+      *addrlen = sizeof(addr_central);
+      nrecv = recvfrom(fd_central, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
+      if( nrecv == -1 ) {
+        printf("Error: recv");
+        exit(1); /*error*/
+      }
+      buffer[nrecv] = '\0';
+      printf("%s\n", buffer);
+
     } else {
-      /* Save the start server. */
-      *id_start = *my_id;
+      sscanf(msg_data, "%*d;%d;%[^; ];%d", id_start, ip_start, &tpt_start);
+
+      join_ring(&fellow, tpt_start, ip_start, *id_start);
+
+
     }
   }
 
-  /* Set the server to dispatch */
-  sprintf(msg_out, "SET_DS %d;%d;%s;%d", service, id, ip, upt);
-  nsend = sendto(fd_central, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_central, sizeof(addr_central));
-  if( nsend == -1 ) {
-    printf("Error: send");
-    exit(1); /*error*/
-  }
-  *addrlen = sizeof(addr_central);
-  nrecv = recvfrom(fd_central, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
-  if( nrecv == -1 ) {
-    printf("Error: recv");
-    exit(1); /*error*/
-  }
-  buffer[nrecv] = '\0';
-  printf("%s\n", buffer);
+
 }
 
 void unregister_central (int id, int *id_start, int *service, int fd_central, struct sockaddr_in addr_central, socklen_t *addrlen) {
