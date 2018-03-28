@@ -25,7 +25,8 @@ struct fellow {
 
   /* state */
   int start, available, ring_unavailable, dispatch;
-  int nw_arrival_flag; /* a new fellow is connecting*/
+  int nw_arrival_flag; /* a new fellow is connecting */
+  int prev_flag; /* there is a previous */
 
   /* next */
   struct next_fellow next;

@@ -9,8 +9,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 
-#define MAX_STR 50
-#define SUPER_STR 400
+#define MAX_STR 128
 #define USAGE "service –n id –j ip -u upt –t tpt [-i csip] [-p cspt]"
 #define DEFAULT_HOST "tejo.tecnico.ulisboa.pt"
 #define DEFAULT_PORT 59000
@@ -27,16 +26,17 @@ void unregister_central (int id, int *id_start, int *service, int fd_central, st
 
 int main(int argc, char const *argv[]) {
   int id, id_start, upt, tpt, cspt, service = -1, ret, sel_in, exit_f = 0, counter;
-  int fd_central, fd_service, my_id, max_fd = 0;
+  int fd_central, fd_service, my_id, max_fd = 0, n;
   fd_set rfds;
   /*int nread, st_id, st_tpt;*/
   socklen_t addrlen;
   enum status my_status = IDLE;
   char ip[MAX_STR], csip[MAX_STR];
+  char buffer[MAX_STR];
   struct sockaddr_in addr_central, addr_service, addr_client;
+
   struct fellow fellow;
-  char big_buffer[SUPER_STR], small_buffer[MAX_STR];
-  int ptr_big = 0, ptr_small;
+  struct stream_buffer ring_buffer, nw_arrival_buffer;
 
   get_arguments(argc, argv, &id, ip, &upt, &tpt, csip, &cspt);
 
@@ -90,6 +90,9 @@ int main(int argc, char const *argv[]) {
       FD_SET(fellow.fd_listen, &rfds); max_fd = max(max_fd, fellow.fd_listen);
     } else () {
       FD_SET(fellow.fd_nw_arrival, &rfds); max_fd = max(max_fd, fellow.fd_nw_arrival);
+    }
+    if (prev_flag) {
+      FD_SET(fellow.fd_prev, &rfds); max_fd = max(max_fd, fellow.fd_prev);
     }
 
     counter = select(max_fd+1, &rfds, (fd_set*) NULL, (fd_set*) NULL, (struct timeval *) NULL);
@@ -175,18 +178,28 @@ int main(int argc, char const *argv[]) {
         }
 
         fellow.nw_arrival_flag = 1;
+        ptr_small = 0;
       }
     } else {
       if (FD_ISSET(fellow.fd_nw_arrival, &rfds)) {
         /* Receiving first message from new. */
-        while((n=read(newfd,buffer,128))!=0){
-         if(n==-1)exit(1);//error
-            ptr=&buffer[0];
 
-         }
       }
     }
 
+    if (FD_ISSET(fellow.fd_prev, &rfds)) {
+      /* Message(s) from previous. */
+
+      /* Read all. */
+      if (readto_stream(fellow.fd_prev, &ring_buffer) == -1) {
+        /* TODO */
+      }
+
+      /* Parse while possible. */
+      while (get_stream(buffer, &ring_buffer) != -1) {
+        void process_message (buffer, &fellow, );
+      }
+    }
   }
 
   /* Exit. */
