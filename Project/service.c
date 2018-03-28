@@ -79,14 +79,13 @@ int main(int argc, char const *argv[]) {
 
     if (FD_ISSET(0, &rfds)) {
       /* Read user input. */
-      sel_in = parse_user_input(&fellow.service);
+      sel_in = parse_user_input(&(fellow.service));
 
       switch (sel_in) {
         case IN_JOIN:
           /* Regist server in central, with the input service. */
           regist_on_central(&fellow);
           my_status = AVAILABLE;
-          /* TODO: Join the service ring. */
 
           break;
         case IN_STATE:

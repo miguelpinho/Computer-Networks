@@ -109,9 +109,9 @@ void register_cs(char *reply, struct fellow *fellow) {
     exit(1); /*error*/
   }
 
-  addrlen = sizeof(msg_in->addr_central);
+  addrlen = sizeof(fellow->addr_central);
 
-  nrecv = recvfrom( msg_in->fd_central, msg_in, 128, 0,
+  nrecv = recvfrom( fellow->fd_central, msg_in, 128, 0,
                     (struct sockaddr*) &(fellow->addr_central), &addrlen );
   if( nrecv == -1 ) {
     printf("Error: recv");

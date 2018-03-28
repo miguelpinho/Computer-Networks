@@ -296,7 +296,8 @@ int exit_ring(struct fellow *fellow) {
 /* Receives token exit */
 void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, int tpt_next) {
   int n;
-  struct sockaddr_in addr_new;
+  struct sockaddr_in addr;
+  socklen_t addrlen;
 
   if (fellow->next.id == id_out) {
     /* This is the previous fellow of the one leaving */
@@ -320,11 +321,11 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
         exit(1);/* error */
       }
 
-      addr_new.sin_family = AF_INET;
-      addr_new.sin_addr.s_addr = inet_addr(ip_next);
-      addr_new.sin_port = htons(tpt_next);
+      addr.sin_family = AF_INET;
+      addr.sin_addr.s_addr = inet_addr(ip_next);
+      addr.sin_port = htons(tpt_next);
 
-      n = connect(fellow->next.fd_next, (struct sockaddr*) &addr_new, sizeof(addr_new));
+      n = connect(fellow->next.fd_next, (struct sockaddr*) &addr, sizeof(addr));
     	if (n == -1) {
         exit(1); /* error */
       }
@@ -335,17 +336,28 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
       /* This is the one after the one leaving. */
 
       /* Disconnect from leaving fellow */
-      close(fellow->next.fd_next);
-
-      /* TODO: Expect connection??? */
+      close(fellow->prev);
     }
 
     /* pass the O token */
     send_token('O', fellow, id_out, id_next, ip_next, tpt_next);
+
+    if (fellow->id == id_next) {
+      /* Accept previous previous. */
+
+      addr.sin_family = AF_INET;
+      addr.sin_addr.s_addr = inet_addr(ip_next);
+      addr.sin_port = htons(tpt_next);
+
+      if ( (fellow->fd_prev = accept( fellow.fd_listen,
+           (struct sockaddr*) &addr, &addrlen) ) == -1 ) {
+        exit(1); /* error */
+      }
+    }
   }
 }
 
-/*When a server receivs the new start token*/
+/*When a server receives the new start token*/
 void token_new_start(struct fellow *fellow) {
   int nsend, nrecv;
   char msg_out[MAX_STR], msg_in[MAX_STR];
