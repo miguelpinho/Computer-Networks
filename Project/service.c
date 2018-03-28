@@ -51,7 +51,7 @@ int main(int argc, char const *argv[]) {
   */
 
   while (exit_f == 0) {
-    /* Prepare select, to monitor stdin and the sockets: central and service */
+    /* Prepare select, to monitor stdin and the sockets */
     FD_ZERO(&rfds);
     FD_SET(0, &rfds);
     FD_SET(fellow.fd_central, &rfds); max_fd = fellow.fd_central;

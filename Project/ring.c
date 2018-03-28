@@ -344,11 +344,6 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
 
     if (fellow->id == id_next) {
       /* Accept previous previous. */
-
-      addr.sin_family = AF_INET;
-      addr.sin_addr.s_addr = inet_addr(ip_next);
-      addr.sin_port = htons(tpt_next);
-
       if ( (fellow->fd_prev = accept( fellow.fd_listen,
            (struct sockaddr*) &addr, &addrlen) ) == -1 ) {
         exit(1); /* error */
