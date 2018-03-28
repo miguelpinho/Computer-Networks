@@ -8,6 +8,10 @@
 #ifndef STREAM_MESSAGES_H
 #define STREAM_MESSAGES_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 #define MAX_STR 128
 #define STREAM_STR 1024
 

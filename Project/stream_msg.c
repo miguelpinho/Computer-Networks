@@ -58,7 +58,7 @@ int get_stream(char *dest, struct stream_buffer *buffer) {
 void insert_n(struct stream_buffer *buffer, char *src, int n) {
   int i, end = buffer->end;
 
-  for (i = 0; i < n; i++) {str
+  for (i = 0; i < n; i++) {
     buffer->stream[end] = src[i];
 
     end++;

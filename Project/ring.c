@@ -121,6 +121,7 @@ void join_ring(struct fellow *fellow , int tpt_start , char *ip_start, int id_st
 }
 
 void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_new, int id_start) {
+  int n;
   struct sockaddr_in addr_new;
 
   /* Received message NEW. */
@@ -154,8 +155,10 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
 }
 
 /* Receives token new */
-void token_new(struct fellow *fellow, int id2, char *ip, int tpt) {
-  int fd_destroy; /* Tmp, for connection to start to delete */
+void token_new(struct fellow *fellow, int id_start, int id_new, char *ip_new, int tpt_new) {
+  /*int fd_destroy; // Tmp, for connection to start to delete */
+  int n;
+  struct sockaddr_in addr_new;
 
   if(fellow->next.id == id_start) {
     /* This element is the tail of the ring. */
@@ -170,14 +173,14 @@ void token_new(struct fellow *fellow, int id2, char *ip, int tpt) {
     fellow->next.tpt = tpt_new;
     strcpy(fellow->next.ip, ip_new);
 
-    fellow->next.fd_next=socket(AF_INET,SOCK_STREAM,0); //TCP socket
+    fellow->next.fd_next=socket(AF_INET,SOCK_STREAM,0);
   	if(fellow->next.fd_next==-1) exit(1);/* error */
 
     addr_new.sin_family = AF_INET;
-    addr_new.sin_addr.s_addr = inet_addr(ip);
-    addr_new.sin_port = htons(tpt);
+    addr_new.sin_addr.s_addr = inet_addr(ip_new);
+    addr_new.sin_port = htons(tpt_new);
 
-    n = connect(fellow->next.fd_next, (struct sockaddr*)&addr_new,sizeof(addr_new));
+    n = connect(fellow->next.fd_next, (struct sockaddr*) &addr_new, sizeof(addr_new));
   	if (n==-1) {
       exit(1); /* error */
     }
@@ -185,16 +188,18 @@ void token_new(struct fellow *fellow, int id2, char *ip, int tpt) {
   } else {
     /* This is not the tail. Pass the token. */
 
-    send_token('N', fellow, id2, ip, tpt);
+    send_token('N', fellow, id_start, id_new, ip_new, tpt_new);
   }
 
 }
 
 /* User input exit */
 int exit_ring(struct fellow *fellow) {
+  int nsend, nrecv;
   socklen_t addrlen;
+  char msg_out[MAX_STR], msg_in[MAX_STR];
 
-  if ( felow->start == 1 ) {
+  if (fellow->start == 1) {
 
     /* Check if there is one server with the wanted service. */
     sprintf(msg_out, "WITHDRAW_START %d;%d", fellow->service, fellow->id);
@@ -205,9 +210,9 @@ int exit_ring(struct fellow *fellow) {
       printf("Error: send");
       exit(1); /*error*/
     }
-    addrlen = sizeof(addr_central);
+    addrlen = sizeof(fellow->addr_central);
   	nrecv = recvfrom( fellow->fd_central, msg_in, 128, 0,
-                      (struct sockaddr*) &addr_central, &addrlen );
+                      (struct sockaddr*) &(fellow->addr_central), &addrlen );
   	if( nrecv == -1 ) {
       printf("Error: recv");
       exit(1); /*error*/
@@ -234,7 +239,8 @@ int exit_ring(struct fellow *fellow) {
 
 /* Receives token exit */
 void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, int tpt_next) {
-  sockaddr_in addr_new;
+  int n;
+  struct sockaddr_in addr_new;
 
   if (fellow->next.id == id_out) {
     /* This is the previous fellow of the one leaving */
@@ -284,9 +290,9 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
 }
 
 /*When a server receivs the new start token*/
-void token_newstart( struct fellow *fellow , int service, int fd_central , struct sockaddr addr_central) {
+void token_new_start(struct fellow *fellow) {
   int nsend, nrecv;
-  char msg_out[MAX_STR], msg_type[MAX_STR];
+  char msg_out[MAX_STR], msg_in[MAX_STR];
   socklen_t addrlen;
 
   sprintf( msg_out, "SET_START %d;%d;%s;%d", fellow->service, fellow->id,
@@ -300,7 +306,7 @@ void token_newstart( struct fellow *fellow , int service, int fd_central , struc
   }
   addrlen = sizeof(fellow->addr_central);
   nrecv = recvfrom( fellow->fd_central, msg_in, MAX_STR, 0,
-                    (struct sockaddr*) &(fellow->addr_central), addrlen );
+                    (struct sockaddr*) &(fellow->addr_central), &addrlen );
   if( nrecv == -1 ) {
     printf("Error: recv");
     exit(1); /*error*/
@@ -329,7 +335,7 @@ void become_unavailable() {
 }
 
 void token_search() {
-  //
+
 }
 
 void token_transfer() {
@@ -363,11 +369,11 @@ int process_message (char *msg, struct fellow *fellow) {
         break;
       case 'N':
         sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d", &id2, ip, &tpt);
-        token_new(fellow, id2, ip, tpt);
+        token_new(fellow, id, id2, ip, tpt);
         break;
       case 'O':
         sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d", &id2, ip, &tpt);
-        token_exit(fellow, id, id2, tpt, ip);
+        token_exit(fellow, id, id2, ip, tpt);
         break;
       default:
         printf("Error: Token type not known\n");
@@ -378,20 +384,19 @@ int process_message (char *msg, struct fellow *fellow) {
       sscanf(msg_data, "%d;%[^;];%d", &id, ip, &tpt);
       new_arrival_ring(fellow, id, tpt, ip, fellow->id);*/
   } else if (strcmp(msg_type, "NEW_START") == 0)   {
-      token_newstart(fellow);
+      token_new_start(fellow);
   } else {
     printf("Error: Message not known: \"%s\"\n", msg);
     return 0;
   }
 
-
-  printf("%d %s %d %d \n", id, ip, id2, tpt);
+  printf("%d %s %d %d\n", id, ip, id2, tpt);
   return 1;
 }
 
 int message_nw_arrival (char *msg, struct fellow *fellow) {
 
-  char buffer[MAX_STR], msg_data[MAX_STR], msg_type[MAX_STR] ip[MAX_STR];
+  char msg_data[MAX_STR], msg_type[MAX_STR], ip[MAX_STR];
   int id, tpt;
 
   sscanf(msg, "%s %s", msg_type, msg_data);
@@ -404,6 +409,6 @@ int message_nw_arrival (char *msg, struct fellow *fellow) {
     return 0;
   }
 
-  printf("%d %s %d %d \n", id, ip, id2, tpt);
+  printf("%d %s %d \n", id, ip, tpt);
   return 1;
 }

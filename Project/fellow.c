@@ -8,12 +8,11 @@
 #include "fellow.h"
 
 void new_fellow(struct fellow *this) {
-  struct sockaddr_in addr_fellow;
 
   /* FIXME: initialize state variables */
   this->start = 0;
   this->available = -1;
-  this->ring_available = -1;
+  this->ring_unavailable = -1;
   this->dispatch = 0;
 
   this->service = -1;
@@ -37,8 +36,8 @@ void create_sockets(struct fellow *fellow) {
   /* Create address of the central server. */
   memset((void*) &(fellow->addr_central), (int) '\0', sizeof(fellow->addr_central));
 	fellow->addr_central.sin_family = AF_INET;
-	fellow->addr_central.sin_addr.s_addr = inet_addr(csip);
-	fellow->addr_central.sin_port = htons(cspt);
+	fellow->addr_central.sin_addr.s_addr = inet_addr(fellow->csip);
+	fellow->addr_central.sin_port = htons(fellow->cspt);
 
   /* Create socket for the service to the client. */
   fellow->fd_service = socket(AF_INET, SOCK_DGRAM, 0);
@@ -50,8 +49,8 @@ void create_sockets(struct fellow *fellow) {
   /* Binds client serving socket to the given address. */
   memset((void*) &(fellow->addr_service), (int) '\0', sizeof(fellow->addr_service));
   fellow->addr_service.sin_family = AF_INET;
-  fellow->addr_service.sin_port = htons(upt);
-  fellow->fellow->addr_service.sin_addr.s_addr = inet_addr(ip);
+  fellow->addr_service.sin_port = htons(fellow->upt);
+  fellow->addr_service.sin_addr.s_addr = inet_addr(fellow->ip);
 
   ret = bind( fellow->fd_service, (struct sockaddr*) &(fellow->addr_service),
               sizeof(fellow->addr_service) );
@@ -70,18 +69,18 @@ void create_sockets(struct fellow *fellow) {
 
   addr_fellow.sin_family = AF_INET;
   addr_fellow.sin_addr.s_addr = htonl(INADDR_ANY);
-  addr_fellow.sin_port = htons(tpt);
+  addr_fellow.sin_port = htons(fellow->tpt);
 
   if (bind(fellow->fd_listen, (struct sockaddr*) &addr_fellow, sizeof(addr_fellow)) == -1) {
     exit(1); /* error */
   }
 
-  if (listen(fd,5) == -1) {
+  if (listen(fellow->fd_listen, 5) == -1) {
     exit(1); /* error */
   }
 
   /* Adress of the client being served. */
-  memset((void*) &addr_client, (int) '\0', sizeof(addr_client));
+  memset((void*) &(fellow->addr_client), (int) '\0', sizeof(fellow->addr_client));
 }
 
 void destroy_fellow(struct fellow *this) {
@@ -91,13 +90,15 @@ void destroy_fellow(struct fellow *this) {
   close(this->next.fd_next);
   close(this->fd_listen);
   close(this->fd_prev);
-  close(this->fd_aux);
+  close(this->fd_nw_arrival);
 }
 
 void regist_on_central(struct fellow *fellow) {
-  int id_start;
+  int id_start, tpt_start;
   int nsend, nrecv;
   char buffer[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR];
+  char test_data[MAX_STR];
+  char ip_start[MAX_STR];
   socklen_t addrlen;
 
   /* Regist this service server in the central server (UDP). */
@@ -112,7 +113,7 @@ void regist_on_central(struct fellow *fellow) {
   }
   addrlen = sizeof(fellow->addr_central);
 	nrecv = recvfrom( fellow->fd_central, buffer, 128, 0,
-                    (struct sockaddr*) &(fellow->addr_central), addrlen );
+                    (struct sockaddr*) &(fellow->addr_central), &addrlen );
 	if( nrecv == -1 ) {
     printf("Error: recv");
     exit(1); /*error*/
@@ -130,7 +131,8 @@ void regist_on_central(struct fellow *fellow) {
       fellow->start = 1;
 
       /* Set start */
-      sprintf(msg_out, "SET_START %d;%d;%s;%d", service, fellow->id, fellow->ip, fellow->tpt);
+      sprintf( msg_out, "SET_START %d;%d;%s;%d", fellow->service, fellow->id,
+               fellow->ip, fellow->tpt );
       nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
                       (struct sockaddr*) &(fellow->addr_central),
                       sizeof(fellow->addr_central) );
@@ -140,7 +142,7 @@ void regist_on_central(struct fellow *fellow) {
       }
       addrlen = sizeof(fellow->addr_central);
     	nrecv = recvfrom( fellow->fd_central, buffer, 128, 0,
-                        (struct sockaddr*) &(fellow->addr_central), addrlen );
+                        (struct sockaddr*) &(fellow->addr_central), &addrlen );
     	if( nrecv == -1 ) {
         printf("Error: recv");
         exit(1); /*error*/
@@ -151,21 +153,26 @@ void regist_on_central(struct fellow *fellow) {
 
       /* Set the server to dispatch */
       fellow->dispatch = 1;
-      this->available = 1;
-      fellow->ring_ring_unavailable = 0;
+      fellow->available = 1;
+      fellow->ring_unavailable = 0;
 
-      sprintf(msg_out, "SET_DS %d;%d;%s;%d", service, fellow->id, fellow->ip, upt);
-      nsend = sendto(fd_central, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_central, sizeof(addr_central));
+      sprintf( msg_out, "SET_DS %d;%d;%s;%d", fellow->service, fellow->id,
+               fellow->ip, fellow->upt );
+      nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
+                      (struct sockaddr*) &(fellow->addr_central),
+                      sizeof(fellow->addr_central) );
       if( nsend == -1 ) {
         printf("Error: send");
         exit(1); /*error*/
       }
-      *addrlen = sizeof(addr_central);
-      nrecv = recvfrom(fd_central, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
+      addrlen = sizeof(fellow->addr_central);
+      nrecv = recvfrom( fellow->fd_central, buffer, 128, 0, (struct sockaddr*)
+                        &(fellow->addr_central), &addrlen );
       if( nrecv == -1 ) {
         printf("Error: recv");
         exit(1); /*error*/
       }
+
       /* TODO: Check if message is OK */
       buffer[nrecv] = '\0';
       printf("%s\n", buffer);
@@ -196,7 +203,7 @@ void unregister_central (struct fellow *fellow) {
     }
     addrlen = sizeof(fellow->addr_central);
     nrecv = recvfrom( fellow->fd_central, buffer, MAX_STR, 0,
-                      (struct sockaddr*) &(fellow->addr_central), addrlen );
+                      (struct sockaddr*) &(fellow->addr_central), &addrlen );
     if( nrecv == -1 ) {
       printf("Error: recv");
       exit(1); /*error*/
@@ -216,7 +223,7 @@ void unregister_central (struct fellow *fellow) {
   }
   addrlen = sizeof(fellow->addr_central);
   nrecv = recvfrom( fellow->fd_central, buffer, MAX_STR, 0,
-                    (struct sockaddr*) &(fellow->addr_central), addrlen );
+                    (struct sockaddr*) &(fellow->addr_central), &addrlen );
   if( nrecv == -1 ) {
     printf("Error: recv");
     exit(1); /*error*/
