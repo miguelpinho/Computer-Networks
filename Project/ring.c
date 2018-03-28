@@ -82,6 +82,68 @@ void send_new_start(struct fellow *fellow) {
 	}
 }
 
+int process_message (char *msg, struct fellow *fellow) {
+
+  char msg_data[MAX_STR], msg_type[MAX_STR], token_type, ip[MAX_STR];
+  int id, tpt, id2;
+
+  sscanf(msg, "%s %s", msg_type, msg_data);
+
+  if (strcmp(msg_type, "TOKEN") == 0) {
+    sscanf(msg_data, "%d;%c",&id, &token_type);
+
+    printf("%c\n", token_type);
+
+    switch (token_type) {
+      case 'S': case 'T': case 'I': case 'D':
+        /*TODO*/
+        break;
+      case 'N':
+        sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d", &id2, ip, &tpt);
+        token_new(fellow, id, id2, ip, tpt);
+        break;
+      case 'O':
+        sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d", &id2, ip, &tpt);
+        token_exit(fellow, id, id2, ip, tpt);
+        break;
+      default:
+        printf("Error: Token type not known\n");
+        return 0;
+        break;
+    }
+  /*} else if (strcmp(msg_type, "NEW")== 0) {
+      sscanf(msg_data, "%d;%[^;];%d", &id, ip, &tpt);
+      new_arrival_ring(fellow, id, tpt, ip, fellow->id);*/
+  } else if (strcmp(msg_type, "NEW_START") == 0)   {
+      token_new_start(fellow);
+  } else {
+    printf("Error: Message not known: \"%s\"\n", msg);
+    return 0;
+  }
+
+  printf("%d %s %d %d\n", id, ip, id2, tpt);
+  return 1;
+}
+
+int message_nw_arrival (char *msg, struct fellow *fellow) {
+
+  char msg_data[MAX_STR], msg_type[MAX_STR], ip[MAX_STR];
+  int id, tpt;
+
+  sscanf(msg, "%s %s", msg_type, msg_data);
+
+  if (strcmp(msg_type, "NEW")== 0) {
+    sscanf(msg_data, "%d;%[^;];%d", &id, ip, &tpt);
+    new_arrival_ring(fellow, id, tpt, ip, fellow->id);
+  } else {
+    printf("Error: Invalid message\n");
+    return 0;
+  }
+
+  printf("%d %s %d \n", id, ip, tpt);
+  return 1;
+}
+
 /*****STEP 2 BEGIN: ring maintenance*****/
 /* GET_start is not null */
 void join_ring(struct fellow *fellow , int tpt_start , char *ip_start, int id_start) {
@@ -199,42 +261,36 @@ int exit_ring(struct fellow *fellow) {
   socklen_t addrlen;
   char msg_out[MAX_STR], msg_in[MAX_STR];
 
+  /* Manage availability inheritance. */
+  /* TODO */
+
+  /* Manage start inheritance. */
   if (fellow->start == 1) {
+    /* Withdraw as start from central */
 
-    /* Check if there is one server with the wanted service. */
-    sprintf(msg_out, "WITHDRAW_START %d;%d", fellow->service, fellow->id);
-    nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
-                    (struct sockaddr*) &(fellow->addr_central),
-                    sizeof(fellow->addr_central) );
-  	if( nsend == -1 ) {
-      printf("Error: send");
-      exit(1); /*error*/
-    }
-    addrlen = sizeof(fellow->addr_central);
-  	nrecv = recvfrom( fellow->fd_central, msg_in, 128, 0,
-                      (struct sockaddr*) &(fellow->addr_central), &addrlen );
-  	if( nrecv == -1 ) {
-      printf("Error: recv");
-      exit(1); /*error*/
-    }
-    msg_in[nrecv] = '\0';
-    printf("%s\n", msg_in);
+    withdraw_cs("WITHDRAW_START", fellow);
 
+    if (fellow->next.id != -1) {
+      /* Makes the next server the start */
+
+      send_new_start(fellow);
+    }
+
+    fellow->start = 0;
   }
 
-  if (fellow->next.id == -1) {
-    /* Ring is over */
-    return 0;
+  if (fellow->next.id != -1) {
+    /* pass token exit */
+    send_token('O', fellow, fellow->id, fellow->next.id, fellow->next.ip, fellow->next.tpt);
 
-  } else {
-    /* Makes the next server the start */
-    send_new_start(fellow);
+    /* wait for disconnects, from previous and next */
+    /* TODO */
   }
 
-  /* pass token exit */
-  send_token('O', fellow, fellow->id, fellow->next.id, fellow->next.ip, fellow->next.tpt);
+  fellow->next.id = -1;
+  fellow->service = -1;
 
-  /* wait for disconnect? */
+  return 1;
 }
 
 /* Receives token exit */
@@ -351,64 +407,38 @@ void get_state() {
 }
 /*****STEP 3 END*****/
 
-int process_message (char *msg, struct fellow *fellow) {
+void regist_on_central(struct fellow *fellow) {
+  int id_start, tpt_start;
+  char ip_start[MAX_STR];
+  char msg[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR];
+  char test_data[MAX_STR];
+  socklen_t addrlen;
 
-  char msg_data[MAX_STR], msg_type[MAX_STR], token_type, ip[MAX_STR];
-  int id, tpt, id2;
+  register_cs(msg, fellow);
 
   sscanf(msg, "%s %s", msg_type, msg_data);
+  if (strcmp(msg_type, "OK") != 0) {
+    printf("Erro: msg\n");
+    /* TODO */
+  } else {
+    sprintf(test_data, "%d;0;0.0.0.0;0", fellow->id);
+    if (strcmp(msg_data, test_data) == 0) {
+      /* This is the start server. */
+      set_cs("SET_START", fellow);
 
-  if (strcmp(msg_type, "TOKEN") == 0) {
-    sscanf(msg_data, "%d;%c",&id, &token_type);
+      fellow->start = 1;
 
-    printf("%c\n", token_type);
+      /* Also set the server to dispatch */
+      set_cs("SET_DS", fellow);
 
-    switch (token_type) {
-      case 'S': case 'T': case 'I': case 'D':
-        /*TODO*/
-        break;
-      case 'N':
-        sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d", &id2, ip, &tpt);
-        token_new(fellow, id, id2, ip, tpt);
-        break;
-      case 'O':
-        sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d", &id2, ip, &tpt);
-        token_exit(fellow, id, id2, ip, tpt);
-        break;
-      default:
-        printf("Error: Token type not known\n");
-        return 0;
-        break;
+      fellow->dispatch = 1;
+      fellow->available = 1;
+      fellow->ring_unavailable = 0;
+
+    } else {
+      sscanf(msg_data, "%*d;%d;%[^; ];%d", &id_start, ip_start, &tpt_start);
+
+      join_ring(fellow, tpt_start, ip_start, id_start);
     }
-  /*} else if (strcmp(msg_type, "NEW")== 0) {
-      sscanf(msg_data, "%d;%[^;];%d", &id, ip, &tpt);
-      new_arrival_ring(fellow, id, tpt, ip, fellow->id);*/
-  } else if (strcmp(msg_type, "NEW_START") == 0)   {
-      token_new_start(fellow);
-  } else {
-    printf("Error: Message not known: \"%s\"\n", msg);
-    return 0;
   }
-
-  printf("%d %s %d %d\n", id, ip, id2, tpt);
-  return 1;
-}
-
-int message_nw_arrival (char *msg, struct fellow *fellow) {
-
-  char msg_data[MAX_STR], msg_type[MAX_STR], ip[MAX_STR];
-  int id, tpt;
-
-  sscanf(msg, "%s %s", msg_type, msg_data);
-
-  if (strcmp(msg_type, "NEW")== 0) {
-    sscanf(msg_data, "%d;%[^;];%d", &id, ip, &tpt);
-    new_arrival_ring(fellow, id, tpt, ip, fellow->id);
-  } else {
-    printf("Error: Invalid message\n");
-    return 0;
-  }
-
-  printf("%d %s %d \n", id, ip, tpt);
-  return 1;
 }

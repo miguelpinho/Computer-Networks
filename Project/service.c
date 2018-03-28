@@ -106,14 +106,14 @@ int main(int argc, char const *argv[]) {
         case IN_LEAVE:
           /* TODO: Leave the service ring. */
 
-          unregister_central(&fellow);
+          exit_ring(&fellow);
           my_status = IDLE;
           break;
         case IN_EXIT:
           exit_f = 1;
           /*When you exit the api we have to unregister the server, otherwise it will be rubbish in the server*/
           if (my_status != IDLE) {
-            unregister_central(&fellow);
+            exit_ring(&fellow);
           }
           break;
         case IN_NO_JOIN:

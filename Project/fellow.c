@@ -93,12 +93,9 @@ void destroy_fellow(struct fellow *this) {
   close(this->fd_nw_arrival);
 }
 
-void regist_on_central(struct fellow *fellow) {
-  int id_start, tpt_start;
+void register_cs(char *reply, struct fellow *fellow) {
+  char msg_out[MAX_STR], msg_in[MAX_STR];
   int nsend, nrecv;
-  char buffer[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR];
-  char test_data[MAX_STR];
-  char ip_start[MAX_STR];
   socklen_t addrlen;
 
   /* Regist this service server in the central server (UDP). */
@@ -107,113 +104,33 @@ void regist_on_central(struct fellow *fellow) {
   nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
                   (struct sockaddr*) &(fellow->addr_central),
                   sizeof(fellow->addr_central) );
-	if( nsend == -1 ) {
+  if( nsend == -1 ) {
     printf("Error: send");
     exit(1); /*error*/
   }
-  addrlen = sizeof(fellow->addr_central);
-	nrecv = recvfrom( fellow->fd_central, buffer, 128, 0,
+
+  addrlen = sizeof(msg_in->addr_central);
+
+  nrecv = recvfrom( msg_in->fd_central, msg_in, 128, 0,
                     (struct sockaddr*) &(fellow->addr_central), &addrlen );
-	if( nrecv == -1 ) {
+  if( nrecv == -1 ) {
     printf("Error: recv");
     exit(1); /*error*/
   }
-  buffer[nrecv] = '\0';
-  printf("%s\n", buffer);
 
-  sscanf(buffer, "%s %s", msg_type, msg_data);
-  if (strcmp(msg_type, "OK") != 0) {
-    printf("Erro: msg\n");
-  } else {
-    sprintf(test_data, "%d;0;0.0.0.0;0", fellow->id);
-    if (strcmp(msg_data, test_data) == 0) {
-      /* This is the start server. */
-      fellow->start = 1;
+  msg_in[nrecv] = '\0';
+  printf("%s\n", msg_in);
 
-      /* Set start */
-      sprintf( msg_out, "SET_START %d;%d;%s;%d", fellow->service, fellow->id,
-               fellow->ip, fellow->tpt );
-      nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
-                      (struct sockaddr*) &(fellow->addr_central),
-                      sizeof(fellow->addr_central) );
-    	if( nsend == -1 ) {
-        printf("Error: send");
-        exit(1); /*error*/
-      }
-      addrlen = sizeof(fellow->addr_central);
-    	nrecv = recvfrom( fellow->fd_central, buffer, 128, 0,
-                        (struct sockaddr*) &(fellow->addr_central), &addrlen );
-    	if( nrecv == -1 ) {
-        printf("Error: recv");
-        exit(1); /*error*/
-      }
-      /* TODO: Check if message is OK */
-      buffer[nrecv] = '\0';
-      printf("%s\n", buffer);
-
-      /* Set the server to dispatch */
-      fellow->dispatch = 1;
-      fellow->available = 1;
-      fellow->ring_unavailable = 0;
-
-      sprintf( msg_out, "SET_DS %d;%d;%s;%d", fellow->service, fellow->id,
-               fellow->ip, fellow->upt );
-      nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
-                      (struct sockaddr*) &(fellow->addr_central),
-                      sizeof(fellow->addr_central) );
-      if( nsend == -1 ) {
-        printf("Error: send");
-        exit(1); /*error*/
-      }
-      addrlen = sizeof(fellow->addr_central);
-      nrecv = recvfrom( fellow->fd_central, buffer, 128, 0, (struct sockaddr*)
-                        &(fellow->addr_central), &addrlen );
-      if( nrecv == -1 ) {
-        printf("Error: recv");
-        exit(1); /*error*/
-      }
-
-      /* TODO: Check if message is OK */
-      buffer[nrecv] = '\0';
-      printf("%s\n", buffer);
-
-    } else {
-      sscanf(msg_data, "%*d;%d;%[^; ];%d", &id_start, ip_start, &tpt_start);
-
-      join_ring(fellow, tpt_start, ip_start, id_start);
-    }
-  }
-
-
+  strcpy(reply, msg_in);
 }
 
-void unregister_central (struct fellow *fellow) {
-  char buffer[MAX_STR], msg_out[MAX_STR];
+void set_cs(char *query, struct fellow *fellow) {
+  char msg_out[MAX_STR], msg_in[MAX_STR];
   int nsend, nrecv;
   socklen_t addrlen;
 
-  if(fellow->start) {
-    sprintf(msg_out, "WITHDRAW_START %d;%d", fellow->service, fellow->id);
-    nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
-                    (struct sockaddr*) &(fellow->addr_central),
-                    sizeof(fellow->addr_central) );
-    if( nsend == -1 ) {
-      printf("Error: send");
-      exit(1); /*error*/
-    }
-    addrlen = sizeof(fellow->addr_central);
-    nrecv = recvfrom( fellow->fd_central, buffer, MAX_STR, 0,
-                      (struct sockaddr*) &(fellow->addr_central), &addrlen );
-    if( nrecv == -1 ) {
-      printf("Error: recv");
-      exit(1); /*error*/
-    }
-    buffer[nrecv] = '\0';
-    printf("%s\n", buffer);
-
-  }
-
-  sprintf(msg_out, "WITHDRAW_DS %d;%d", fellow->service, fellow->id);
+  sprintf( msg_out, "%s %d;%d;%s;%d", query, fellow->service, fellow->id,
+           fellow->ip, fellow->tpt );
   nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
                   (struct sockaddr*) &(fellow->addr_central),
                   sizeof(fellow->addr_central) );
@@ -221,16 +138,46 @@ void unregister_central (struct fellow *fellow) {
     printf("Error: send");
     exit(1); /*error*/
   }
+
   addrlen = sizeof(fellow->addr_central);
-  nrecv = recvfrom( fellow->fd_central, buffer, MAX_STR, 0,
+
+  nrecv = recvfrom( fellow->fd_central, msg_in, 128, 0,
                     (struct sockaddr*) &(fellow->addr_central), &addrlen );
   if( nrecv == -1 ) {
     printf("Error: recv");
     exit(1); /*error*/
   }
-  buffer[nrecv] = '\0';
-  printf("%s\n", buffer);
 
-  fellow->service = -1;
+  /* TODO: Check if message is OK */
+  msg_in[nrecv] = '\0';
+  printf("%s\n", msg_in);
 
+}
+
+void withdraw_cs(char *query, struct fellow *fellow) {
+  char msg_out[MAX_STR], msg_in[MAX_STR];
+  int nsend, nrecv;
+  socklen_t addrlen;
+
+  sprintf(msg_out, "%s %d;%d", query, fellow->service, fellow->id);
+  nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
+                  (struct sockaddr*) &(fellow->addr_central),
+                  sizeof(fellow->addr_central) );
+  if( nsend == -1 ) {
+    printf("Error: send");
+    exit(1); /*error*/
+  }
+
+  addrlen = sizeof(fellow->addr_central);
+
+  nrecv = recvfrom( fellow->fd_central, msg_in, MAX_STR, 0,
+                    (struct sockaddr*) &(fellow->addr_central), &addrlen );
+  if( nrecv == -1 ) {
+    printf("Error: recv");
+    exit(1); /*error*/
+  }
+
+  /* TODO: Check if reply is an OK? */
+  msg_in[nrecv] = '\0';
+  printf("%s\n", msg_in);
 }

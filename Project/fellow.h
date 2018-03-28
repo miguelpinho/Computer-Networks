@@ -55,7 +55,8 @@ struct fellow {
 void new_fellow(struct fellow *this);
 void create_sockets(struct fellow *fellow);
 void destroy_fellow(struct fellow *this);
-void regist_on_central(struct fellow *fellow);
-void unregister_central (struct fellow *fellow);
+void register_cs(char *reply, struct fellow *fellow);
+void set_cs(char *query, struct fellow *fellow);
+void withdraw_cs(char *query, struct fellow *fellow);
 
 #endif
