@@ -8,6 +8,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include "fellow.h"
+#include "ring.h"
 
 #define MAX_STR 128
 #define USAGE "service –n id –j ip -u upt –t tpt [-i csip] [-p cspt]"
@@ -18,12 +20,9 @@
 enum status {AVAILABLE, BUSY, IDLE};
 enum input_type {IN_ERROR, IN_JOIN, IN_NO_JOIN, IN_STATE, IN_LEAVE, IN_NO_LEAVE, IN_EXIT};
 
-void prepare_sockets();
 void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt);
 int parse_user_input(int *service);
-void regist_on_central (int service, int fd_central, int id, int *id_start, struct sockaddr_in addr_central, int *my_id, char *ip, int upt, int tpt, socklen_t *addrlen);
-void serve_client (int fd_service, struct sockaddr_in *addr_client, enum status *my_status);
-void unregister_central (int id, int *id_start, int *service, int fd_central, struct sockaddr_in addr_central, socklen_t *addrlen);
+void serve_client(struct fellow *fellow, enum status *my_status);
 
 int main(int argc, char const *argv[]) {
   int sel_in, exit_f = 0, counter;
@@ -196,7 +195,7 @@ int main(int argc, char const *argv[]) {
   /* Exit. */
   close(fd_central);
   close(fd_service);
-void prepare_sockets();
+
   return 0;
 }
 
@@ -308,141 +307,6 @@ int parse_user_input(int *service) {
 
     return IN_ERROR;
   }
-}
-
-void regist_on_central(struct fellow *fellow) {
-
-  int id_start;
-  int nsend, nrecv;
-  char buffer[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR];
-  socklen_t addrlen;
-
-  /* Regist this service server in the central server (UDP). */
-  /* get start server */
-  sprintf(msg_out, "GET_START %d;%d", fellow->service, fellow->id);
-  nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
-                  (struct sockaddr*) &(fellow->addr_central),
-                  sizeof(fellow->addr_central) );
-	if( nsend == -1 ) {
-    printf("Error: send");
-    exit(1); /*error*/
-  }
-  addrlen = sizeof(fellow->addr_central);
-	nrecv = recvfrom( fellow->fd_central, buffer, 128, 0,
-                    (struct sockaddr*) &(fellow->addr_central), addrlen );
-	if( nrecv == -1 ) {
-    printf("Error: recv");
-    exit(1); /*error*/
-  }
-  buffer[nrecv] = '\0';
-  printf("%s\n", buffer);
-
-  sscanf(buffer, "%s %s", msg_type, msg_data);
-  if (strcmp(msg_type, "OK") != 0) {
-    printf("Erro: msg\n");
-  } else {
-    sprintf(test_data, "%d;0;0.0.0.0;0", fellow->id);
-    if (strcmp(msg_data, test_data) == 0) {
-      /* This is the start server. */
-      fellow->start = 1;
-
-      /* Set start */
-      sprintf(msg_out, "SET_START %d;%d;%s;%d", service, fellow->id, fellow->ip, fellow->tpt);
-      nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
-                      (struct sockaddr*) &(fellow->addr_central),
-                      sizeof(fellow->addr_central) );
-    	if( nsend == -1 ) {
-        printf("Error: send");
-        exit(1); /*error*/
-      }
-      addrlen = sizeof(fellow->addr_central);
-    	nrecv = recvfrom( fellow->fd_central, buffer, 128, 0,
-                        (struct sockaddr*) &(fellow->addr_central), addrlen );
-    	if( nrecv == -1 ) {
-        printf("Error: recv");
-        exit(1); /*error*/
-      }
-      /* TODO: Check if message is OK */
-      buffer[nrecv] = '\0';
-      printf("%s\n", buffer);
-
-      /* Set the server to dispatch */
-      fellow->dispatch = 1;
-      this->available = 1;
-      fellow->ring_ring_unavailable = 0;
-
-      sprintf(msg_out, "SET_DS %d;%d;%s;%d", service, fellow->id, fellow->ip, upt);
-      nsend = sendto(fd_central, msg_out, strlen(msg_out), 0, (struct sockaddr*)&addr_central, sizeof(addr_central));
-      if( nsend == -1 ) {
-        printf("Error: send");
-        exit(1); /*error*/
-      }
-      *addrlen = sizeof(addr_central);
-      nrecv = recvfrom(fd_central, buffer, 128, 0, (struct sockaddr*)&addr_central, addrlen);
-      if( nrecv == -1 ) {
-        printf("Error: recv");
-        exit(1); /*error*/
-      }
-      /* TODO: Check if message is OK */
-      buffer[nrecv] = '\0';
-      printf("%s\n", buffer);
-
-    } else {
-      sscanf(msg_data, "%*d;%d;%[^; ];%d", &id_start, ip_start, &tpt_start);
-
-      join_ring(fellow, tpt_start, ip_start, id_start);
-    }
-  }
-
-
-}
-
-void unregister_central (struct fellow *fellow) {
-  char buffer[MAX_STR], msg_out[MAX_STR];
-  int nsend, nrecv;
-  socklen_t addrlen;
-
-  if(fellow->start) {
-    sprintf(msg_out, "WITHDRAW_START %d;%d", fellow->service, fellow->id);
-    nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
-                    (struct sockaddr*) &(fellow->addr_central),
-                    sizeof(fellow->addr_central) );
-    if( nsend == -1 ) {
-      printf("Error: send");
-      exit(1); /*error*/
-    }
-    addrlen = sizeof(fellow->addr_central);
-    nrecv = recvfrom( fellow->fd_central, buffer, MAX_STR, 0,
-                      (struct sockaddr*) &(fellow->addr_central), addrlen );
-    if( nrecv == -1 ) {
-      printf("Error: recv");
-      exit(1); /*error*/
-    }
-    buffer[nrecv] = '\0';
-    printf("%s\n", buffer);
-
-  }
-
-  sprintf(msg_out, "WITHDRAW_DS %d;%d", fellow->service, fellow->id);
-  nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
-                  (struct sockaddr*) &(fellow->addr_central),
-                  sizeof(fellow->addr_central) );
-  if( nsend == -1 ) {
-    printf("Error: send");
-    exit(1); /*error*/
-  }
-  addrlen = sizeof(fellow->addr_central);
-  nrecv = recvfrom( fellow->fd_central, buffer, MAX_STR, 0,
-                    (struct sockaddr*) &(fellow->addr_central), addrlen );
-  if( nrecv == -1 ) {
-    printf("Error: recv");
-    exit(1); /*error*/
-  }
-  buffer[nrecv] = '\0';
-  printf("%s\n", buffer);
-
-  fellow->service = -1;
-
 }
 
 void serve_client(struct fellow *fellow, enum status *my_status) {
