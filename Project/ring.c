@@ -8,25 +8,62 @@
 
 #include "ring.h"
 
-void new_fellow(struct fellow *this, int id, char *ip, int tpt) {
-struct sockaddr_in addr_fellow;
+#define MAX_STR 128
 
-  /* store id and address */
-  this->id = id;
-  strncpy(this->ip, ip, MAX_STR-1);
-  this->tpt = tpt;
+void new_fellow(struct fellow *this) {
+  struct sockaddr_in addr_fellow;
 
   /* FIXME: initialize state variables */
-  start = -1;
-  available = -1;
-  ring_available = -1;
-  dispatch = -1;
+  this->start = 0;
+  this->available = -1;
+  this->ring_available = -1;
+  this->dispatch = 0;
+
+  this->service = -1;
 
   /* FIXME: set next to none */
   this->next.id = -1;
 
-  /* create listen socket */
-  if ((this->fd_listen = socket(AF_INET,SOCK_STREAM,0)) == -1) {
+}
+
+void creat_sockets(struct fellow *fellow) {
+  int ret;
+
+  /* Create socket for communication with central. */
+  fellow->fd_central = socket(AF_INET, SOCK_DGRAM, 0);
+	if(fellow->fd_central == -1) {
+    printf("Error: socket central");
+    exit(1); /*error*/
+  }
+
+  /* Create address of the central server. */
+  memset((void*) &addr_central, (int) '\0', sizeof(addr_central));
+	addr_central.sin_family = AF_INET;
+	addr_central.sin_addr.s_addr = inet_addr(csip);
+	addr_central.sin_port = htons(cspt);
+
+  /* Create socket for the service to the client. */
+  fellow->fd_service = socket(AF_INET, SOCK_DGRAM, 0);
+	if (fellow->fd_service == -1) {
+    printf("Error: socket serving");
+    exit(1); /*error*/
+  }
+
+  /* Binds client serving socket to the given address. */
+  memset((void*) &addr_service, (int) '\0', sizeof(addr_service));
+  addr_service.sin_family = AF_INET;
+  addr_service.sin_addr.s_addr = inet_addr(ip);
+  addr_service.sin_port = htons(upt);
+
+  ret = bind(fellow->fd_service, (struct sockaddr*) &addr_service, sizeof(addr_service));
+  if (ret == -1) {
+    printf("Error: bind\n");
+
+    exit(1); /*error*/
+  }
+
+  /* Create listen socket */
+  if ((fellow->fd_listen = socket(AF_INET,SOCK_STREAM,0)) == -1) {
     exit(1); /* error */
   }
 
@@ -36,7 +73,20 @@ struct sockaddr_in addr_fellow;
   addr_fellow.sin_addr.s_addr = htonl(INADDR_ANY);
   addr_fellow.sin_port = htons(tpt);
 
-  if (bind(this->fd_listen, (struct sockaddr*) &addr_fellow, sizeof(addr_fellow)) == -1) {
+  if (bind(fellow->fd_listen, (struct sockaddr*) &addr_fellow, sizeof(addr_fellow)) == -1) {
+    exit(1); /* error */
+  }
+
+  if (listen(fd,5) == -1) {
+    exit(1); /* error */
+  }
+  memset((void*) &addr_fellow, (int) '\0', sizeof(addr_fellow));
+
+  addr_fellow.sin_family = AF_INET;
+  addr_fellow.sin_addr.s_addr = htonl(INADDR_ANY);
+  addr_fellow.sin_port = htons(tpt);
+
+  if (bind(fellow->fd_listen, (struct sockaddr*) &addr_fellow, sizeof(addr_fellow)) == -1) {
     exit(1); /* error */
   }
 
@@ -346,7 +396,7 @@ void token_newstart( struct fellow fellow , int service, int fd_central , struct
   printf("%s\n", msg_in);
 }
 
-void process_message (char *msg, struct fellow *fellow, int fd_central, struct sockaddr addr_central) {
+int process_message (char *msg, struct fellow *fellow, int fd_central, struct sockaddr addr_central) {
 
   char buffer[MAX_STR], msg_data[MAX_STR], msg_type[MAX_STR], token_type, ip[MAX_STR];
   int id, tpt, id2;
@@ -375,9 +425,9 @@ void process_message (char *msg, struct fellow *fellow, int fd_central, struct s
         return 0;
         break;
     }
-  } else if (strcmp(msg_type, "NEW")== 0) {
+  /*} else if (strcmp(msg_type, "NEW")== 0) {
       sscanf(msg_data, "%d;%[^;];%d", &id, ip, &tpt);
-      new_arrival_ring(fellow, id, tpt, ip, fellow.id);
+      new_arrival_ring(fellow, id, tpt, ip, fellow->id);*/
   } else if (strcmp(msg_type, "NEW_START") == 0)   {
       token_newstart(fellow, service, fd_central, addr_central);
   } else {
@@ -385,6 +435,25 @@ void process_message (char *msg, struct fellow *fellow, int fd_central, struct s
     return 0;
   }
 
+
+  printf("%d %s %d %d \n", id, ip, id2, tpt);
+  return 1;
+}
+
+int message_nw_arrival (char *msg, struct fellow *fellow) {
+
+  char buffer[MAX_STR], msg_data[MAX_STR], msg_type[MAX_STR] ip[MAX_STR];
+  int id, tpt;
+
+  sscanf(msg, "%s %s", msg_type, msg_data);
+
+  if (strcmp(msg_type, "NEW")== 0) {
+    sscanf(msg_data, "%d;%[^;];%d", &id, ip, &tpt);
+    new_arrival_ring(fellow, id, tpt, ip, fellow->id);
+  } else {
+    printf("Error: Invalid message\n");
+    return 0;
+  }
 
   printf("%d %s %d %d \n", id, ip, id2, tpt);
   return 1;
