@@ -5,10 +5,7 @@
     functions for input stream processing
 */
 
-#include "stream_messages.h"
-
-#define STREAM_STR 1024;
-#define MAX_STR 128;
+#include "stream_msg.h"
 
 void insert_n(struct stream_buffer *buffer, char *src, int n);
 

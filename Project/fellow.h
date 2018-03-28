@@ -8,6 +8,18 @@
 #ifndef FELLOW_H
 #define FELLOW_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <string.h>
+#include "stream_msg.h"
+
 /* next server in the fellowship ring */
 struct next_fellow {
   int id;
@@ -29,7 +41,7 @@ struct fellow {
   int prev_flag; /* there is a previous */
 
   /* service */
-  int service;/
+  int service;
 
   /* next */
   struct next_fellow next;
@@ -38,10 +50,10 @@ struct fellow {
   int fd_central, fd_service;
   int fd_listen, fd_prev;
   int fd_nw_arrival; /* for ring transient states */
-}
+};
 
 void new_fellow(struct fellow *this);
-void creat_sockets(struct fellow *fellow);
+void create_sockets(struct fellow *fellow);
 void destroy_fellow(struct fellow *this);
 void regist_on_central(struct fellow *fellow);
 void unregister_central (struct fellow *fellow);

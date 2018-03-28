@@ -8,22 +8,19 @@
 
 #include "ring.h"
 
-#define MAX_STR 128
-
-void send_token( char token_type, struct fellow *fellow, int id2, char *ip, int tpt, int id_start) {
-
-  int n, nbytes, nleft, nwritten, ptr;
-  char msg_out[MAX_STR], buffer[MAX_STR];
+void send_token(char token_type, struct fellow *fellow, int id, int id2, char *ip, int tpt) {
+  int nleft, nwritten;
+  char msg_out[MAX_STR], *ptr;
 
   switch (token_type) {
     case 'S': case 'T': case 'I': case 'D':
-      sprintf(msg_out, "TOKEN %d;%c\n", fellow.id, token_type);
+      sprintf(msg_out, "TOKEN %d;%c\n", id, token_type);
       break;
     case 'N':
-      sprintf(msg_out, "%d;%c;%d;%s;%d\n", id_start, token_type, id2, ip, tpt);
+      sprintf( msg_out, "%d;%c;%d;%s;%d\n", id, token_type, id2, ip, tpt);
       break;
     case 'O':
-      sprintf(msg_out, "%d;%c;%d;%s;%d\n", fellow.id, token_type, fellow.next.id, fellow.next.ip, fellow.next.tpt);
+      sprintf( msg_out, "%d;%c;%d;%s;%d\n", id, token_type, id2, ip, tpt);
       break;
     default:
       printf("Error: Token type not known\n");
@@ -31,71 +28,10 @@ void send_token( char token_type, struct fellow *fellow, int id2, char *ip, int 
       break;
   }
 
-  /* addr_next.sin_family = AF_INET;
-  addr_next.sin_addr.s_addr = inet_addr(fellow.next.ip);
-  addr_next.sin_port = htons(fellow.next.tpt); */
+	ptr = &msg_out[0];
 
-  /* n=connect(fellow.next.fd_next, (struct sockaddr*)&addr_next,sizeof(addr_next));
-	if(n==-1) exit(1); /* error */
-
-	ptr = strcpy(buffer, msg_out);
-	nbytes = strlen(msg_out);
-
-	nleft=nbytes;
-	while(nleft>0) {
-		nwritten = write(fl->next.fd_next, ptr, nleft);
-		if (nwritten <= 0) {
-      exit(1); /* error */
-    }
-
-		nleft -= nwritten;
-		ptr += nwritten;
-	}
-
-	/* nleft=nbytes;
-	ptr=buffer;
-	while(nleft>0) {
-		nread=read(fellow.fd_prev,ptr,nleft);
-		if(nread==-1) exit(1); //error
-		else if(nread==0) break; //closed by peer
-		nleft-=nread;
-		ptr+=nread;
-	}
-	nread=nbytes-nleft; */
-}
-
-/*****STEP 2 BEGIN: ring maintenance*****/
-/* GET_start is not null */
-void join_ring( struct fellow *fellow , int tpt_start , char *ip_start, int id_start) {
-  socklen_t addrlen;
-  struct sockaddr_in addr;
-
-  /* connect to start server */
-  fellow->next.id = id_start;
-  fellow->next.tpt = tpt_start;
-  strcpy(fellow->next.ip, ip_start);
-
-  fellow->next.fd_next = socket(AF_INET,SOCK_STREAM,0); //TCP socket
-	if(fellow->next.fd_next==-1) {
-    exit(1); /* error */
-  }
-
-  addr_next.sin_family = AF_INET;
-  addr_next.sin_addr.s_addr = inet_addr(ip_start);
-  addr_next.sin_port = htons(tpt_start);
-
-  n = connect(fellow->next.fd_next, (struct sockaddr*)&addr_next,sizeof(addr_next));
-	if (n == -1) {
-    exit(1); /* error */
-  }
-
-  sprintf(msg_out, "NEW %d;%s;%d\n", fellow->id, fellow->ip, fellow->tpt);
-
-  ptr = strcpy(buffer, msg_out);
-	nbytes = strlen(msg_out);
-
-	nleft = nbytes;
-	while (nleft > 0) {
+	nleft = strlen(msg_out);
+	while(nleft > 0) {
 		nwritten = write(fellow->next.fd_next, ptr, nleft);
 		if (nwritten <= 0) {
       exit(1); /* error */
@@ -104,6 +40,76 @@ void join_ring( struct fellow *fellow , int tpt_start , char *ip_start, int id_s
 		nleft -= nwritten;
 		ptr += nwritten;
 	}
+}
+
+void send_new(struct fellow *fellow) {
+  int nleft, nwritten;
+  char msg_out[MAX_STR], *ptr;
+
+  sprintf(msg_out, "NEW %d;%s;%d\n", fellow->id, fellow->ip, fellow->tpt);
+
+  ptr = &msg_out[0];
+
+  nleft = strlen(msg_out);
+	while(nleft > 0) {
+		nwritten = write(fellow->next.fd_next, ptr, nleft);
+		if (nwritten <= 0) {
+      exit(1); /* error */
+    }
+
+		nleft -= nwritten;
+		ptr += nwritten;
+	}
+}
+
+void send_new_start(struct fellow *fellow) {
+  int nleft, nwritten;
+  char msg_out[MAX_STR], *ptr;
+
+  sprintf(msg_out, "NEW_START\n");
+
+  ptr = &msg_out[0];
+
+  nleft = strlen(msg_out);
+	while(nleft > 0) {
+		nwritten = write(fellow->next.fd_next, ptr, nleft);
+		if (nwritten <= 0) {
+      exit(1); /* error */
+    }
+
+		nleft -= nwritten;
+		ptr += nwritten;
+	}
+}
+
+/*****STEP 2 BEGIN: ring maintenance*****/
+/* GET_start is not null */
+void join_ring(struct fellow *fellow , int tpt_start , char *ip_start, int id_start) {
+  int n;
+  socklen_t addrlen;
+  struct sockaddr_in addr, addr_next;
+
+  /* connect to start server */
+  fellow->next.id = id_start;
+  fellow->next.tpt = tpt_start;
+  strcpy(fellow->next.ip, ip_start);
+
+  fellow->next.fd_next = socket(AF_INET,SOCK_STREAM,0);
+	if(fellow->next.fd_next==-1) {
+    exit(1); /* error */
+  }
+
+  addr_next.sin_family = AF_INET;
+  addr_next.sin_addr.s_addr = inet_addr(ip_start);
+  addr_next.sin_port = htons(tpt_start);
+
+  n = connect(fellow->next.fd_next, (struct sockaddr*) &addr_next, sizeof(addr_next));
+	if (n == -1) {
+    exit(1); /* error */
+  }
+
+  /* Communicate to start it wants to enter the ring. */
+  send_new(fellow);
 
   /* wait for connection */
   if ((fellow->fd_prev = accept(fellow->fd_listen, (struct sockaddr*) &addr, &addrlen)) == -1) {
@@ -114,15 +120,10 @@ void join_ring( struct fellow *fellow , int tpt_start , char *ip_start, int id_s
   /* FIXME: ask Saruman */
 }
 
-/* Tcp listen port triggered. */
 void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_new, int id_start) {
-  /* Fellow received a tcp connection to it. */
+  struct sockaddr_in addr_new;
 
-  /* Accept new fellow. */
-  if ((fellow->fd_prev = accept(fellow->fd_listen, (struct sockaddr*) &addr, &addrlen)) == -1) {
-    exit(1); /* error */
-  }
-
+  /* Received message NEW. */
   if (fellow->next.id == -1) {
     /* Start was alone in the ring. Connect it to the new. */
 
@@ -130,22 +131,21 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
     fellow->next.tpt = tpt_new;
     strcpy(fellow->next.ip, ip_new);
 
-    fellow->next.fd_next=socket(AF_INET,SOCK_STREAM,0); //TCP socket
+    fellow->next.fd_next=socket(AF_INET,SOCK_STREAM,0);
   	if(fellow->next.fd_next==-1) exit(1);/* error */
 
     addr_new.sin_family = AF_INET;
     addr_new.sin_addr.s_addr = inet_addr(ip_new);
-    addr_new.sin_port = htons(tpt);
+    addr_new.sin_port = htons(tpt_new);
 
-    n = connect(fellow->next.fd_next, (struct sockaddr*)&addr_new,sizeof(addr_new));
+    n = connect(fellow->next.fd_next, (struct sockaddr*) &addr_new, sizeof(addr_new));
     if (n==-1) {
       exit(1); /* error */
     }
 
   } else {
     /* There are more fellows in the ring. Pass token to warn tail. */
-
-    send_token('N', *fellow, id_new, ip_new, tpt_new, id_start);
+    send_token('N', fellow, fellow->id, id_new, ip_new, tpt_new);
 
     /* TODO: wait for desconnection from tail?? */
 
@@ -157,54 +157,57 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
 void token_new(struct fellow *fellow, int id2, char *ip, int tpt) {
   int fd_destroy; /* Tmp, for connection to start to delete */
 
-    if(fellow->next.id == id_start) {
-      /* This element is the tail of the ring. */
+  if(fellow->next.id == id_start) {
+    /* This element is the tail of the ring. */
 
-      /* FIXME: is order of connect and disconnect important??? */
-      /* Disconnect from the start. */
-      fellow->next.id = -1;
-      close(fellow->next.fd_next);
+    /* FIXME: is order of connect and disconnect important??? */
+    /* Disconnect from the start. */
+    fellow->next.id = -1;
+    close(fellow->next.fd_next);
 
-      /* Connect to the new element. */
-      fellow->next.id = id_new;
-      fellow->next.tpt = tpt_new;
-      strcpy(fellow->next.ip, ip_new);
+    /* Connect to the new element. */
+    fellow->next.id = id_new;
+    fellow->next.tpt = tpt_new;
+    strcpy(fellow->next.ip, ip_new);
 
-      fellow->next.fd_next=socket(AF_INET,SOCK_STREAM,0); //TCP socket
-    	if(fellow->next.fd_next==-1) exit(1);/* error */
+    fellow->next.fd_next=socket(AF_INET,SOCK_STREAM,0); //TCP socket
+  	if(fellow->next.fd_next==-1) exit(1);/* error */
 
-      addr_new.sin_family = AF_INET;
-      addr_new.sin_addr.s_addr = inet_addr(ip);
-      addr_new.sin_port = htons(tpt);
+    addr_new.sin_family = AF_INET;
+    addr_new.sin_addr.s_addr = inet_addr(ip);
+    addr_new.sin_port = htons(tpt);
 
-      n = connect(fellow->next.fd_next, (struct sockaddr*)&addr_new,sizeof(addr_new));
-    	if (n==-1) {
-        exit(1); /* error */
-      }
-
-    } else {
-      /* This is not the tail. Pass the token. */
-
-      send_token('N', *fellow, id2, ip, tpt);
+    n = connect(fellow->next.fd_next, (struct sockaddr*)&addr_new,sizeof(addr_new));
+  	if (n==-1) {
+      exit(1); /* error */
     }
+
+  } else {
+    /* This is not the tail. Pass the token. */
+
+    send_token('N', fellow, id2, ip, tpt);
+  }
 
 }
 
 /* User input exit */
-int exit_ring( struct fellow fellow, int id_start, int fd_udp, int service, struct sockaddr addr_central) {
-  /* if (start) */
-    /* withdraw start */
-  if ( felow.id == id_start) {
+int exit_ring(struct fellow *fellow) {
+  socklen_t addrlen;
+
+  if ( felow->start == 1 ) {
 
     /* Check if there is one server with the wanted service. */
-    sprintf(msg_out, "WITHDRAW_START %d;%d", service, fellow.id);
-    nsend = sendto(fd_udp, msg_out, strlen(msg_out), 0, (struct sockaddr*) &addr_central, sizeof(addr_central));
+    sprintf(msg_out, "WITHDRAW_START %d;%d", fellow->service, fellow->id);
+    nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
+                    (struct sockaddr*) &(fellow->addr_central),
+                    sizeof(fellow->addr_central) );
   	if( nsend == -1 ) {
       printf("Error: send");
       exit(1); /*error*/
     }
-    *addrlen = sizeof(addr_central);
-  	nrecv = recvfrom(fd_udp, msg_in, 128, 0, (struct sockaddr*) &addr_central, addrlen);
+    addrlen = sizeof(addr_central);
+  	nrecv = recvfrom( fellow->fd_central, msg_in, 128, 0,
+                      (struct sockaddr*) &addr_central, &addrlen );
   	if( nrecv == -1 ) {
       printf("Error: recv");
       exit(1); /*error*/
@@ -214,76 +217,69 @@ int exit_ring( struct fellow fellow, int id_start, int fd_udp, int service, stru
 
   }
 
-    /* if (next is null) */
-      /* return (ring is over) */
-  if (fellow.next.id == -1) {
+  if (fellow->next.id == -1) {
     /* Ring is over */
     return 0;
 
-    /* else */
-      /* set next as start */
   } else {
-    /* This is wrong, it has to send the new_start message */
-    sprintf(msg_out, "NEW_START\n");
-
-    ptr = strcpy(buffer, msg_out);
-  	nbytes = strlen(msg_out);
-
-  	nleft = nbytes;
-  	while (nleft>0) {
-  		nwritten = write(fellow.next.fd_next,ptr,nleft);
-  		if (nwritten < =0)
-      {
-        exit(1); /* error */
-      }
-
-  		nleft-=nwritten;
-  		ptr+=nwritten;
-  	}
+    /* Makes the next server the start */
+    send_new_start(fellow);
   }
 
   /* pass token exit */
-  send_token('O', fellow, 0, "0", 0, 0, 0);
+  send_token('O', fellow, fellow->id, fellow->next.id, fellow->next.ip, fellow->next.tpt);
 
   /* wait for disconnect? */
 }
 
 /* Receives token exit */
-void token_exit(struct fellow *fellow, int id_out, int id_next, int tpt2, char *ip2) {
-  /* if (id == next) */
-    /* if (id2 == self) */
-      /* disconnect from next */
-      /* set next to null */
-  if (id_out == fellow->next.id) {
-    if (fellow.id == id_next) {
+void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, int tpt_next) {
+  sockaddr_in addr_new;
+
+  if (fellow->next.id == id_out) {
+    /* This is the previous fellow of the one leaving */
+
+    if (fellow->id == id_next) {
+      /* This fellow will be alone in the ring */
+
       close(fellow->next.fd_next);
       fellow->next.id = -1;
     } else {
-      /* else *
-        /* disconnect id */
-        /* connect to id2 */
+      /* Disconnect from leaving fellow */
       close(fellow->next.fd_next);
-      fellow->next.id = id2;
-      strcpy(fellow->next.ip, ip2);
-      fellow->next.tpt = tpt2;
 
-      fellow->next.fd_next=socket(AF_INET,SOCK_STREAM,0); //TCP socket
-    	if(fellow->next.fd_next==-1) exit(1);/* error */
+      /* Connect to next */
+      fellow->next.id = id_next;
+      strcpy(fellow->next.ip, ip_next);
+      fellow->next.tpt = tpt_next;
+
+      fellow->next.fd_next = socket(AF_INET, SOCK_STREAM, 0);
+    	if (fellow->next.fd_next == -1) {
+        exit(1);/* error */
+      }
 
       addr_new.sin_family = AF_INET;
-      addr_new.sin_addr.s_addr = inet_addr(ip2);
-      addr_new.sin_port = htons(tpt2);
+      addr_new.sin_addr.s_addr = inet_addr(ip_next);
+      addr_new.sin_port = htons(tpt_next);
 
-      n = connect(fellow->next.fd_next, (struct sockaddr*)&addr_new,sizeof(addr_new));
-    	if (n==-1) {
+      n = connect(fellow->next.fd_next, (struct sockaddr*) &addr_new, sizeof(addr_new));
+    	if (n == -1) {
         exit(1); /* error */
       }
 
     }
   } else {
-    /* else */
-      /* pass the O token */
-    send_token('O', fellow, 0, "0", 0, 0, 0);
+    if (fellow->id == id_next) {
+      /* This is the one after the one leaving. */
+
+      /* Disconnect from leaving fellow */
+      close(fellow->next.fd_next);
+
+      /* TODO: Expect connection??? */
+    }
+
+    /* pass the O token */
+    send_token('O', fellow, id_out, id_next, ip_next, tpt_next);
   }
 }
 
@@ -351,7 +347,7 @@ void get_state() {
 
 int process_message (char *msg, struct fellow *fellow) {
 
-  char buffer[MAX_STR], msg_data[MAX_STR], msg_type[MAX_STR], token_type, ip[MAX_STR];
+  char msg_data[MAX_STR], msg_type[MAX_STR], token_type, ip[MAX_STR];
   int id, tpt, id2;
 
   sscanf(msg, "%s %s", msg_type, msg_data);
@@ -384,7 +380,7 @@ int process_message (char *msg, struct fellow *fellow) {
   } else if (strcmp(msg_type, "NEW_START") == 0)   {
       token_newstart(fellow);
   } else {
-    printf("Error: Message not known\n");
+    printf("Error: Message not known: \"%s\"\n", msg);
     return 0;
   }
 

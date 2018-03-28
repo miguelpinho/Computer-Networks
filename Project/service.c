@@ -8,10 +8,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include "stream_msg.h"
 #include "fellow.h"
 #include "ring.h"
 
-#define MAX_STR 128
 #define USAGE "service –n id –j ip -u upt –t tpt [-i csip] [-p cspt]"
 #define DEFAULT_HOST "tejo.tecnico.ulisboa.pt"
 #define DEFAULT_PORT 59000
@@ -26,7 +26,7 @@ void serve_client(struct fellow *fellow, enum status *my_status);
 
 int main(int argc, char const *argv[]) {
   int sel_in, exit_f = 0, counter;
-  int max_fd = 0, n;
+  int max_fd = 0;
   fd_set rfds;
   /*int nread, st_id, st_tpt;*/
   enum status my_status = IDLE;
@@ -35,17 +35,20 @@ int main(int argc, char const *argv[]) {
   struct fellow fellow;
   struct stream_buffer ring_buffer, nw_arrival_buffer;
 
-  new_fellow(&fellow, id, ip, tpt);
+
+  struct sockaddr addr_acpt;
+  socklen_t addrlen = sizeof(addr_acpt);
+
+  new_fellow(&fellow);
 
   get_arguments(argc, argv, &(fellow.id), fellow.ip, &(fellow.upt),
                 &(fellow.tpt), fellow.csip, &(fellow.cspt));
 
   create_sockets(&fellow);
 
-  //printf("dummy: %d %s %d %d %s %d\n", id, ip, upt, tpt, csip, cspt);
-
-  /* Adress of the client being served. */
-  memset((void*) &addr_client, (int) '\0', sizeof(addr_client));
+  /*
+  printf("dummy: %d %s %d %d %s %d\n", id, ip, upt, tpt, csip, cspt);
+  */
 
   while (exit_f == 0) {
     /* Prepare select, to monitor stdin and the sockets: central and service */
@@ -55,7 +58,7 @@ int main(int argc, char const *argv[]) {
     FD_SET(fellow.fd_service, &rfds); max_fd = max(max_fd, fellow.fd_service);
     if (!fellow.nw_arrival_flag) {
       FD_SET(fellow.fd_listen, &rfds); max_fd = max(max_fd, fellow.fd_listen);
-    } else () {
+    } else {
       FD_SET(fellow.fd_nw_arrival, &rfds); max_fd = max(max_fd, fellow.fd_nw_arrival);
     }
     if (fellow.prev_flag) {
@@ -69,7 +72,7 @@ int main(int argc, char const *argv[]) {
       exit(1); /*error*/
     }
 
-    if (FD_ISSET(fd_central, &rfds)) {
+    if (FD_ISSET(fellow.fd_central, &rfds)) {
       /* TODO: ignorar mensagem fora de tempo */
 
     }
@@ -81,7 +84,7 @@ int main(int argc, char const *argv[]) {
       switch (sel_in) {
         case IN_JOIN:
           /* Regist server in central, with the input service. */
-          regist_on_central(service, fd_central, id, &id_start, addr_central, &my_id, ip, upt, tpt, &addrlen);
+          regist_on_central(&fellow);
           my_status = AVAILABLE;
           /* TODO: Join the service ring. */
 
@@ -103,14 +106,14 @@ int main(int argc, char const *argv[]) {
         case IN_LEAVE:
           /* TODO: Leave the service ring. */
 
-          unregister_central(id, &id_start, &service, fd_central, addr_central, &addrlen);
+          unregister_central(&fellow);
           my_status = IDLE;
           break;
         case IN_EXIT:
           exit_f = 1;
           /*When you exit the api we have to unregister the server, otherwise it will be rubbish in the server*/
           if (my_status != IDLE) {
-            unregister_central(id, &id_start, &service, fd_central, addr_central, &addrlen);
+            unregister_central(&fellow);
           }
           break;
         case IN_NO_JOIN:
@@ -125,10 +128,10 @@ int main(int argc, char const *argv[]) {
       }
     }
 
-    if (FD_ISSET(fd_service, &rfds)) {
+    if (FD_ISSET(fellow.fd_service, &rfds)) {
       /* Respond to a client request. */
 
-      serve_client(fd_service, &addr_client, &my_status);
+      serve_client(&fellow, &my_status);
     }
 
     if (!fellow.nw_arrival_flag) {
@@ -142,7 +145,8 @@ int main(int argc, char const *argv[]) {
         }
 
         /* Accept new fellow. */
-        if ((fellow.fd_aux = accept(fellow->fd_listen, (struct sockaddr*) &addr, &addrlen)) == -1) {
+        if ( (fellow.fd_nw_arrival = accept( fellow.fd_listen,
+             (struct sockaddr*) &addr_acpt, &addrlen) ) == -1 ) {
           exit(1); /* error */
         }
 
@@ -183,7 +187,7 @@ int main(int argc, char const *argv[]) {
 
         /* Parse while possible. */
         while (get_stream(buffer, &ring_buffer) != -1) {
-          if (process_message(buffer, &fellow, fd_central, addr_central) == 0) {
+          if (process_message(buffer, &fellow) == 0) {
             /* TODO: Error on tcp message protocol. */
           }
 
@@ -193,8 +197,7 @@ int main(int argc, char const *argv[]) {
   }
 
   /* Exit. */
-  close(fd_central);
-  close(fd_service);
+  destroy_fellow(&fellow);
 
   return 0;
 }

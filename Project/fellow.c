@@ -23,8 +23,9 @@ void new_fellow(struct fellow *this) {
 
 }
 
-void creat_sockets(struct fellow *fellow) {
+void create_sockets(struct fellow *fellow) {
   int ret;
+  struct sockaddr_in addr_fellow;
 
   /* Create socket for communication with central. */
   fellow->fd_central = socket(AF_INET, SOCK_DGRAM, 0);
@@ -34,10 +35,10 @@ void creat_sockets(struct fellow *fellow) {
   }
 
   /* Create address of the central server. */
-  memset((void*) &addr_central, (int) '\0', sizeof(addr_central));
-	addr_central.sin_family = AF_INET;
-	addr_central.sin_addr.s_addr = inet_addr(csip);
-	addr_central.sin_port = htons(cspt);
+  memset((void*) &(fellow->addr_central), (int) '\0', sizeof(fellow->addr_central));
+	fellow->addr_central.sin_family = AF_INET;
+	fellow->addr_central.sin_addr.s_addr = inet_addr(csip);
+	fellow->addr_central.sin_port = htons(cspt);
 
   /* Create socket for the service to the client. */
   fellow->fd_service = socket(AF_INET, SOCK_DGRAM, 0);
@@ -47,12 +48,13 @@ void creat_sockets(struct fellow *fellow) {
   }
 
   /* Binds client serving socket to the given address. */
-  memset((void*) &addr_service, (int) '\0', sizeof(addr_service));
-  addr_service.sin_family = AF_INET;
-  addr_service.sin_addr.s_addr = inet_addr(ip);
-  addr_service.sin_port = htons(upt);
+  memset((void*) &(fellow->addr_service), (int) '\0', sizeof(fellow->addr_service));
+  fellow->addr_service.sin_family = AF_INET;
+  fellow->addr_service.sin_port = htons(upt);
+  fellow->fellow->addr_service.sin_addr.s_addr = inet_addr(ip);
 
-  ret = bind(fellow->fd_service, (struct sockaddr*) &addr_service, sizeof(addr_service));
+  ret = bind( fellow->fd_service, (struct sockaddr*) &(fellow->addr_service),
+              sizeof(fellow->addr_service) );
   if (ret == -1) {
     printf("Error: bind\n");
 
@@ -77,23 +79,15 @@ void creat_sockets(struct fellow *fellow) {
   if (listen(fd,5) == -1) {
     exit(1); /* error */
   }
-  memset((void*) &addr_fellow, (int) '\0', sizeof(addr_fellow));
 
-  addr_fellow.sin_family = AF_INET;
-  addr_fellow.sin_addr.s_addr = htonl(INADDR_ANY);
-  addr_fellow.sin_port = htons(tpt);
-
-  if (bind(fellow->fd_listen, (struct sockaddr*) &addr_fellow, sizeof(addr_fellow)) == -1) {
-    exit(1); /* error */
-  }
-
-  if (listen(fd,5) == -1) {
-    exit(1); /* error */
-  }
+  /* Adress of the client being served. */
+  memset((void*) &addr_client, (int) '\0', sizeof(addr_client));
 }
 
 void destroy_fellow(struct fellow *this) {
   /* close sockets */
+  close(this->fd_central);
+  close(this->fd_service);
   close(this->next.fd_next);
   close(this->fd_listen);
   close(this->fd_prev);
