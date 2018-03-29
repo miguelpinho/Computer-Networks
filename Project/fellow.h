@@ -30,11 +30,6 @@ struct next_fellow {
 
 /* state and sockets each fellow stores */
 struct fellow {
-  /* address */
-  int id, upt, tpt, cspt;
-  char ip[MAX_STR], csip[MAX_STR];
-  struct sockaddr_in addr_central, addr_service, addr_client;
-
   /* state */
   int start, available, ring_unavailable, dispatch;
   int nw_arrival_flag; /* a new fellow is connecting */
@@ -43,13 +38,16 @@ struct fellow {
   /* service */
   int service;
 
-  /* next */
-  struct next_fellow next;
-
   /* sockets */
   int fd_central, fd_service;
   int fd_listen, fd_prev;
-  /*int fd_nw_arrival; for ring transient states */
+
+  /* next */
+  struct next_fellow next;
+
+  /* address */
+  int id, upt, tpt, cspt;
+  char ip[MAX_STR], csip[MAX_STR];
 };
 
 void new_fellow(struct fellow *this);

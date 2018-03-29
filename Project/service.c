@@ -192,7 +192,7 @@ void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, in
   struct in_addr *a;
 
   if (argc < 9) {
-    printf("Error: incorrect number of arguments");
+    printf("Error: incorrect number of arguments\n");
     exit(1);
   }
 
@@ -222,7 +222,7 @@ void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, in
         csp = 1;
         break;
       default:
-        printf("Error: Argument not known");
+        printf("Error: Argument not known\n");
         exit(1);
     }
   }
@@ -244,7 +244,7 @@ void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, in
 
 int parse_user_input(int *service) {
   char buffer[MAX_STR], cmd[MAX_STR];
-  int new_sv, arg_read, char_read;
+  int new_sv, arg_read;
 
   if (fgets(buffer, MAX_STR, stdin) == NULL) {
     /* Nothing to read. */
@@ -252,30 +252,19 @@ int parse_user_input(int *service) {
     return IN_ERROR;
   }
 
-  arg_read = sscanf(buffer, "%s%n", cmd, &char_read);
+  arg_read = sscanf(buffer, "%s", cmd);
   if (arg_read != 1) {
 		/*Argument not read*/
-		printf("Error: Invalid message");
-		exit(1);
+		printf("Error: Invalid message\n");
 	}
-	if (char_read != strlen(buffer)) {
-		printf("Error: Not every character was read");
-		exit(1);
-	}
-
 
   /* Parse input. */
   if (strcmp(cmd, "join") == 0) {
     /* Read service id. */
-    arg_read = sscanf(buffer, "%*s %d%n", &new_sv, &char_read);
-    if (arg_read != 2) {
+    arg_read = sscanf(buffer, "%*s %d", &new_sv);
+    if (arg_read != 1) {
       /*Argument not read*/
-      printf("Error: Invalid message");
-      exit(1);
-    }
-    if (char_read != strlen(buffer)) {
-      printf("Error: Not every character was read");
-      exit(1);
+      printf("Error: Invalid message\n");
     }
 
     /* Check if this server alreay belongs to a service ring. */
@@ -315,13 +304,15 @@ int parse_user_input(int *service) {
 
 void serve_client(struct fellow *fellow) {
   int ret, nread, arg_read, char_read;
+  struct sockaddr_in addr_client;
   socklen_t addrlen;
   char toggle[MAX_STR], msg_in[MAX_STR], msg_out[MAX_STR];
 
+  memset((void*) &(addr_client), (int) '\0', sizeof(addr_client));
   addrlen = sizeof(struct sockaddr_in);
 
   nread = recvfrom( fellow->fd_service, msg_in, MAX_STR, 0,
-                    (struct sockaddr*) &(fellow->addr_client), &addrlen );
+                    (struct sockaddr*) &(addr_client), &addrlen );
   if (nread==-1) {
     exit(1); /*error*/
   }
@@ -343,7 +334,7 @@ void serve_client(struct fellow *fellow) {
   if (strcmp(toggle, "ON") == 0){
     sprintf(msg_out, "YOUR_SERVICE ON");
     ret = sendto( fellow->fd_service, msg_out, strlen(msg_out), 0,
-                  (struct sockaddr*) &(fellow->addr_client), addrlen );
+                  (struct sockaddr*) &(addr_client), addrlen );
     if (ret==-1) {
       exit(1); /*error*/
     }
@@ -352,7 +343,7 @@ void serve_client(struct fellow *fellow) {
   } else if (strcmp(toggle, "OFF") == 0) {
     sprintf(msg_out, "YOUR_SERVICE OFF");
     ret = sendto( fellow->fd_service, msg_out, strlen(msg_out), 0,
-                  (struct sockaddr*) &(fellow->addr_client), addrlen );
+                  (struct sockaddr*) &(addr_client), addrlen );
     if (ret==-1) {
       exit(1); /*error*/
     }

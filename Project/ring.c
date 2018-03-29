@@ -473,7 +473,7 @@ void regist_on_central(struct fellow *fellow) {
 
   register_cs(msg, fellow);
 
-  arg_read = sscanf(msg, "%s %s%n", msg_type, msg_data, char_read);
+  arg_read = sscanf(msg, "%s %s%n", msg_type, msg_data, &char_read);
   if (arg_read != 2) {
     /*Argument not read*/
     printf("Error: Invalid message: \"%s\"", msg);
