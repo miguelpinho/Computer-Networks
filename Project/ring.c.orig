@@ -143,9 +143,6 @@ int process_message (char *msg, struct fellow *fellow) {
       default:
         goto error_msg;
     }
-  /*} else if (strcmp(msg_type, "NEW")== 0) {
-      sscanf(msg_data, "%d;%[^;];%d", &id, ip, &tpt);
-      new_arrival_ring(fellow, id, tpt, ip, fellow->id);*/
   } else if (strcmp(msg_type, "NEW_START") == 0)   {
       token_new_start(fellow);
   } else {
@@ -165,7 +162,11 @@ int message_nw_arrival (char *msg, struct fellow *fellow) {
   char msg_data[MAX_STR], msg_type[MAX_STR], ip[MAX_STR];
   int id, tpt, arg_read, char_read;
 
+<<<<<<< HEAD
+  sscanf(msg, "%s %s%n", msg_type, msg_data, &char_read);
+=======
   arg_read = sscanf(msg, "%s %s%n", msg_type, msg_data, &char_read);
+>>>>>>> 07b8779f1a595b1db1760cf5d969965c68ea364c
   if (arg_read != 2) {
     /*Argument not read*/
     printf("Error: Invalid message");
@@ -241,7 +242,7 @@ void join_ring(struct fellow *fellow , int tpt_start , char *ip_start, int id_st
 }
 
 void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_new, int id_start) {
-  int n;
+  int n, fd_aux;
   struct sockaddr_in addr_new;
 
   /* Received message NEW. */
