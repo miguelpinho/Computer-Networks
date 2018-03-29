@@ -73,7 +73,7 @@ int main(int argc, char const *argv[])
 }
 
 void get_arguments (int argc, const char *argv[], char *csip, int *cspt) {
-  int i;
+  int i, arg_read, char_read;
   char ident;
   int csi = 0, csp = 0;
   struct hostent *h;
@@ -124,13 +124,31 @@ int parse_user_input(int *service) {
 		return IN_ERROR;
   }
 
-  sscanf(buffer, "%s", cmd);
+  arg_read = sscanf(buffer, "%s%n", cmd, char_read);
+	if (arg_read != 1) {
+		/*Argument not read*/
+		printf("Error: Invalid message");
+		exit(1);
+	}
+	if (char_read != strlen(buffer)) {
+		printf("Error: Not every character was read");
+		exit(1);
+	}
 
   /* Parse input. */
   if (strcmp(cmd, "rs") == 0) {
     /* Request service x */
 		if (*service == -1) {
-			sscanf(buffer, "%*s %d", service);
+			arg_read = sscanf(buffer, "%*s %d%n", service, char_read);
+			if (arg_read != 2) {
+	      /*Argument not read*/
+	      printf("Error: Invalid message");
+	      exit(1);
+	    }
+	    if (char_read != strlen(buffer)) {
+	      printf("Error: Not every character was read");
+	      exit(1);
+	    }
 			return IN_RS;
 		} else {
 			return IN_NO_RS;
@@ -177,7 +195,17 @@ void request_service(int *service, int fd_udp, int *fd_udp_serv, struct sockaddr
   msg_in[nrecv] = '\0';
   printf("%s\n", msg_in);
 
-  sscanf(msg_in, "%s %d;%s", msg_type, id, msg_data);
+  arg_read = sscanf(msg_in, "%s %d;%s%n", msg_type, id, msg_data, char_read);
+	if (arg_read != 3) {
+		/*Argument not read*/
+		printf("Error: Invalid message");
+		exit(1);
+	}
+	if (char_read != strlen(msg_data)) {
+		printf("Error: Not every character was read");
+		exit(1);
+	}
+
   printf("dummy scan: %s\n", msg_data);
   if (strcmp(msg_type, "OK") != 0) {
     printf("Erro: msg\n");
@@ -185,7 +213,16 @@ void request_service(int *service, int fd_udp, int *fd_udp_serv, struct sockaddr
     /* Service found */
     if (strcmp(msg_data, "0.0.0.0;0") != 0 && *id != 0) {
 
-			sscanf(msg_data, "%[^;];%d", ip, upt);
+			arg_read = sscanf(msg_data, "%[^;];%d%n", ip, upt, char_read);
+			if (arg_read != 2) {
+	      /*Argument not read*/
+	      printf("Error: Invalid message");
+	      exit(1);
+	    }
+	    if (char_read != strlen(msg_data)) {
+	      printf("Error: Not every character was read");
+	      exit(1);
+	    }
 
 			/*split = strtok(msg_data, ";");
 			while (split != NULL)
