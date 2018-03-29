@@ -87,27 +87,25 @@ int process_message (char *msg, struct fellow *fellow) {
   char msg_data[MAX_STR], msg_type[MAX_STR], token_type, ip[MAX_STR];
   int id, tpt, id2, arg_read, char_read;
 
-  arg_read = sscanf(msg, "%s %s%n", msg_type, msg_data, char_read);
+  arg_read = sscanf(msg, "%s %s%n", msg_type, msg_data, &char_read);
   if (arg_read != 2) {
     /*Argument not read*/
-    printf("Error: Invalid message");
-    exit(1);
+    goto error_msg;
   }
   if (char_read != strlen(msg)) {
-    printf("Error: Not every character was read");
-    exit(1);
+    /*Garbage characters*/
+    goto error_msg;
   }
 
   if (strcmp(msg_type, "TOKEN") == 0) {
-    arg_read = sscanf(msg_data, "%d;%c%n",&id, &token_type, char_read);
+    arg_read = sscanf(msg_data, "%d;%c%n",&id, &token_type, &char_read);
     if (arg_read != 2) {
       /*Argument not read*/
-      printf("Error: Invalid message");
-      exit(1);
+      goto error_msg;
     }
     if (char_read != strlen(msg_data)) {
-      printf("Error: Not every character was read");
-      exit(1);
+      /*Garbage characters*/
+      goto error_msg;
     }
 
     printf("%c\n", token_type);
@@ -117,50 +115,46 @@ int process_message (char *msg, struct fellow *fellow) {
         /*TODO*/
         break;
       case 'N':
-        arg_read = sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d%n", &id2, ip, &tpt, char_read);
+        arg_read = sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d%n", &id2, ip, &tpt, &char_read);
         if (arg_read != 3) {
           /*Argument not read*/
-          printf("Error: Invalid message");
-          exit(1);
+          goto error_msg;
         }
         if (char_read != strlen(msg_data)) {
-          printf("Error: Not every character was read");
-          exit(1);
+          /*Garbage characters*/
+          goto error_msg;
         }
 
         token_new(fellow, id, id2, ip, tpt);
         break;
       case 'O':
-        arg_read = sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d%n", &id2, ip, &tpt, char_read);
+        arg_read = sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d%n", &id2, ip, &tpt, &char_read);
         if (arg_read != 3) {
           /*Argument not read*/
-          printf("Error: Invalid message");
-          exit(1);
+          goto error_msg;
         }
         if (char_read != strlen(msg_data)) {
-          printf("Error: Not every character was read");
-          exit(1);
+          /*Garbage characters*/
+          goto error_msg;
         }
 
         token_exit(fellow, id, id2, ip, tpt);
         break;
       default:
-        printf("Error: Token type not known\n");
-        return 0;
-        break;
+        goto error_msg;
     }
-  /*} else if (strcmp(msg_type, "NEW")== 0) {
-      sscanf(msg_data, "%d;%[^;];%d", &id, ip, &tpt);
-      new_arrival_ring(fellow, id, tpt, ip, fellow->id);*/
   } else if (strcmp(msg_type, "NEW_START") == 0)   {
       token_new_start(fellow);
   } else {
-    printf("Error: Message not known: \"%s\"\n", msg);
-    return 0;
+    goto error_msg;
   }
 
   printf("%d %s %d %d\n", id, ip, id2, tpt);
   return 1;
+
+error_msg:
+  printf("Error: Invalid message (new server): \"%s\"\n", msg);
+  return 0;
 }
 
 int message_nw_arrival (char *msg, struct fellow *fellow) {
@@ -168,37 +162,39 @@ int message_nw_arrival (char *msg, struct fellow *fellow) {
   char msg_data[MAX_STR], msg_type[MAX_STR], ip[MAX_STR];
   int id, tpt, arg_read, char_read;
 
-  sscanf(msg, "%s %s%n", msg_type, msg_data, char_read);
+  sscanf(msg, "%s %s%n", msg_type, msg_data, &char_read);
   if (arg_read != 2) {
     /*Argument not read*/
     printf("Error: Invalid message");
     exit(1);
   }
   if (char_read != strlen(msg)) {
-    printf("Error: Not every character was read");
-    exit(1);
+    /*Garbage characters*/
+    goto error_msg;
   }
 
   if (strcmp(msg_type, "NEW")== 0) {
-    arg_read = sscanf(msg_data, "%d;%[^;];%d%n", &id, ip, &tpt, char_read);
+    arg_read = sscanf(msg_data, "%d;%[^;];%d%n", &id, ip, &tpt, &char_read);
     if (arg_read != 4) {
       /*Argument not read*/
-      printf("Error: Invalid message");
-      exit(1);
+      goto error_msg;
     }
     if (char_read != strlen(msg_data)) {
-      printf("Error: Not every character was read");
-      exit(1);
+      /*Garbage characters*/
+      goto error_msg;
     }
 
     new_arrival_ring(fellow, id, tpt, ip, fellow->id);
   } else {
-    printf("Error: Invalid message\n");
-    return 0;
+    goto error_msg;
   }
 
   printf("%d %s %d \n", id, ip, tpt);
   return 1;
+
+error_msg:
+  printf("Error: Invalid message (expected NEW): \"%s\"\n", msg);
+  return 0;
 }
 
 /*****STEP 2 BEGIN: ring maintenance*****/
@@ -235,12 +231,14 @@ void join_ring(struct fellow *fellow , int tpt_start , char *ip_start, int id_st
     exit(1); /* error */
   }
 
+  fellow->prev_flag = 1;
+
   /* how does it communicate it is available??? send D anyway? */
   /* FIXME: ask Saruman */
 }
 
 void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_new, int id_start) {
-  int n;
+  int n, fd_aux;
   struct sockaddr_in addr_new;
 
   /* Received message NEW. */
@@ -267,8 +265,7 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
     /* There are more fellows in the ring. Pass token to warn tail. */
     send_token('N', fellow, fellow->id, id_new, ip_new, tpt_new);
 
-    /* TODO: wait for desconnection from tail?? */
-
+    /* TODO: Do not wait for desconnection from tail */
   }
 
 }
@@ -292,15 +289,19 @@ void token_new(struct fellow *fellow, int id_start, int id_new, char *ip_new, in
     fellow->next.tpt = tpt_new;
     strcpy(fellow->next.ip, ip_new);
 
-    fellow->next.fd_next=socket(AF_INET,SOCK_STREAM,0);
-  	if(fellow->next.fd_next==-1) exit(1);/* error */
+    fellow->next.fd_next = socket(AF_INET, SOCK_STREAM, 0);
+  	if(fellow->next.fd_next == -1) {
+      printf("Error: socket creation\n");
+      exit(1);/* error */
+    }
 
     addr_new.sin_family = AF_INET;
     addr_new.sin_addr.s_addr = inet_addr(ip_new);
     addr_new.sin_port = htons(tpt_new);
 
     n = connect(fellow->next.fd_next, (struct sockaddr*) &addr_new, sizeof(addr_new));
-  	if (n==-1) {
+  	if (n == -1) {
+      printf("Error: connect\n");
       exit(1); /* error */
     }
 
@@ -339,9 +340,13 @@ int exit_ring(struct fellow *fellow) {
 
     /* wait for disconnects, from previous and next */
     /* TODO */
+
+    close(fellow->next.fd_next);
+    fellow->next.id = -1;
+    close(fellow->fd_prev);
+    fellow->prev_flag = 0;
   }
 
-  fellow->next.id = -1;
   fellow->service = -1;
 
   return 1;
@@ -361,6 +366,7 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
 
       close(fellow->next.fd_next);
       fellow->next.id = -1;
+      fellow->prev_flag = 0;
     } else {
       /* Disconnect from leaving fellow */
       close(fellow->next.fd_next);
@@ -382,6 +388,7 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
       n = connect(fellow->next.fd_next, (struct sockaddr*) &addr, sizeof(addr));
     	if (n == -1) {
         exit(1); /* error */
+        printf("Error: TCP connect in exit protocol\n");
       }
 
     }
@@ -391,6 +398,7 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
 
       /* Disconnect from leaving fellow */
       close(fellow->fd_prev);
+      fellow->prev_flag = 0;
     }
 
     /* pass the O token */
@@ -401,7 +409,9 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
       if ( (fellow->fd_prev = accept( fellow->fd_listen,
            (struct sockaddr*) &addr, &addrlen) ) == -1 ) {
         exit(1); /* error */
+        printf("Error: TCP accept in exit protocol\n");
       }
+      fellow->prev_flag = 1;
     }
   }
 }
@@ -412,25 +422,9 @@ void token_new_start(struct fellow *fellow) {
   char msg_out[MAX_STR], msg_in[MAX_STR];
   socklen_t addrlen;
 
-  sprintf( msg_out, "SET_START %d;%d;%s;%d", fellow->service, fellow->id,
-           fellow->ip, fellow->tpt );
-  nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
-                  (struct sockaddr*) &(fellow->addr_central),
-                  sizeof(fellow->addr_central) );
-  if( nsend == -1 ) {
-    printf("Error: send");
-    exit(1); /*error*/
-  }
-  addrlen = sizeof(fellow->addr_central);
-  nrecv = recvfrom( fellow->fd_central, msg_in, MAX_STR, 0,
-                    (struct sockaddr*) &(fellow->addr_central), &addrlen );
-  if( nrecv == -1 ) {
-    printf("Error: recv");
-    exit(1); /*error*/
-  }
-  /* TODO: Check if message is OK */
-  msg_in[nrecv] = '\0';
-  printf("%s\n", msg_in);
+  set_cs("SET_START", fellow);
+
+  fellow->start = 1;
 }
 /*****STEP 2 END*****/
 
@@ -479,16 +473,16 @@ void regist_on_central(struct fellow *fellow) {
   arg_read = sscanf(msg, "%s %s%n", msg_type, msg_data, char_read);
   if (arg_read != 2) {
     /*Argument not read*/
-    printf("Error: Invalid message");
+    printf("Error: Invalid message: \"%s\"", msg);
     exit(1);
   }
   if (char_read != strlen(msg)) {
-    printf("Error: Not every character was read");
+    printf("Error: Invalid message: \"%s\"", msg);
     exit(1);
   }
 
   if (strcmp(msg_type, "OK") != 0) {
-    printf("Erro: msg\n");
+    printf("Error: Invalid message: \"%s\"", msg);
     /* TODO */
   } else {
     sprintf(test_data, "%d;0;0.0.0.0;0", fellow->id);
@@ -507,6 +501,9 @@ void regist_on_central(struct fellow *fellow) {
 
     } else {
       sscanf(msg_data, "%*d;%d;%[^; ];%d", &id_start, ip_start, &tpt_start);
+
+      fellow->start = 0;
+      fellow->available = 1;
 
       join_ring(fellow, tpt_start, ip_start, id_start);
     }

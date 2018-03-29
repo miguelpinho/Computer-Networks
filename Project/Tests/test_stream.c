@@ -10,10 +10,10 @@
 #include <string.h>
 
 
-#define MESSAGE "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbccccccccccccffffffffffffggggggggggggggggghhhhhhhhhhhhhddd"
+#define MESSAGE "tosta_mista_is_very_great_sake_indeed"
 
 #define MAX_STR 128
-#define STREAM_STR 100
+#define STREAM_STR 160
 
 struct stream_buffer {
   char stream[STREAM_STR];
@@ -28,18 +28,37 @@ void insert_n(struct stream_buffer *buffer, char *src, int n);
 
 int main () {
   struct stream_buffer buffer;
-  char test[MAX_STR];
-  int i;
+  char read[MAX_STR], write[MAX_STR];
+  int i, n;
 
   init_stream(&buffer);
 
-  insert_n(&buffer, MESSAGE, 102);
+  for (i = 0; i < 3; i++) {
+    insert_n(&buffer, MESSAGE, strlen(MESSAGE));
+    sprintf(write, "n=%d\n", i);
+    insert_n(&buffer, write, strlen(write));
+  }
 
-  printf("1st: %s\n", buffer.stream);
+  n = get_stream(read, &buffer);
+  printf("%s\n", read);
+  n = get_stream(read, &buffer);
+  printf("%s\n", read);
 
-  i = get_stream(test, &buffer);
+  insert_n(&buffer, MESSAGE, strlen(MESSAGE));
+  sprintf(write, "n=%d\n", 3);
+  insert_n(&buffer, write, strlen(write));
 
-  printf("2nd: %s %d\n", test, i);
+  insert_n(&buffer, MESSAGE, strlen(MESSAGE));
+
+  while ((n = get_stream(read, &buffer)) != -1) {
+    printf("%s\n", read);
+  }
+
+  insert_n(&buffer, "\n", strlen("\n"));
+
+  while ((n = get_stream(read, &buffer)) != -1) {
+    printf("%s\n", read);
+  }
 
   return 0;
 }

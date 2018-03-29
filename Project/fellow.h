@@ -49,7 +49,7 @@ struct fellow {
   /* sockets */
   int fd_central, fd_service;
   int fd_listen, fd_prev;
-  int fd_nw_arrival; /* for ring transient states */
+  /*int fd_nw_arrival; for ring transient states */
 };
 
 void new_fellow(struct fellow *this);

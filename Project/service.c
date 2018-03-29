@@ -17,24 +17,21 @@
 #define DEFAULT_PORT 59000
 #define max(A,B) ((A)>=(B)?(A):(B))
 
-enum status {AVAILABLE, BUSY, IDLE};
 enum input_type {IN_ERROR, IN_JOIN, IN_NO_JOIN, IN_STATE, IN_LEAVE, IN_NO_LEAVE, IN_EXIT};
 
-void get_arguments (int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt);
+void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt);
 int parse_user_input(int *service);
-void serve_client(struct fellow *fellow, enum status *my_status);
+void serve_client(struct fellow *fellow);
 
 int main(int argc, char const *argv[]) {
   int sel_in, exit_f = 0, counter;
   int max_fd = 0;
   fd_set rfds;
   /*int nread, st_id, st_tpt;*/
-  enum status my_status = IDLE;
   char buffer[MAX_STR];
 
   struct fellow fellow;
   struct stream_buffer ring_buffer, nw_arrival_buffer;
-
 
   struct sockaddr addr_acpt;
   socklen_t addrlen = sizeof(addr_acpt);
@@ -56,11 +53,7 @@ int main(int argc, char const *argv[]) {
     FD_SET(0, &rfds);
     FD_SET(fellow.fd_central, &rfds); max_fd = fellow.fd_central;
     FD_SET(fellow.fd_service, &rfds); max_fd = max(max_fd, fellow.fd_service);
-    if (!fellow.nw_arrival_flag) {
-      FD_SET(fellow.fd_listen, &rfds); max_fd = max(max_fd, fellow.fd_listen);
-    } else {
-      FD_SET(fellow.fd_nw_arrival, &rfds); max_fd = max(max_fd, fellow.fd_nw_arrival);
-    }
+    FD_SET(fellow.fd_listen, &rfds); max_fd = max(max_fd, fellow.fd_listen);
     if (fellow.prev_flag) {
       FD_SET(fellow.fd_prev, &rfds); max_fd = max(max_fd, fellow.fd_prev);
     }
@@ -85,33 +78,23 @@ int main(int argc, char const *argv[]) {
         case IN_JOIN:
           /* Regist server in central, with the input service. */
           regist_on_central(&fellow);
-          my_status = AVAILABLE;
 
           break;
         case IN_STATE:
           /* TODO: print state. */
-          switch (my_status) {
-            case AVAILABLE:
-              printf("AVAILABLE\n");
-              break;
-            case BUSY:
-              printf("BUSY\n");
-              break;
-            case IDLE:
-              printf("IDLE\n");
-              break;
-            }
+
           break;
         case IN_LEAVE:
           /* TODO: Leave the service ring. */
 
           exit_ring(&fellow);
-          my_status = IDLE;
           break;
         case IN_EXIT:
           exit_f = 1;
-          /*When you exit the api we have to unregister the server, otherwise it will be rubbish in the server*/
-          if (my_status != IDLE) {
+
+          if (fellow.service != -1) {
+            /* Has to exit the service ring. */
+
             exit_ring(&fellow);
           }
           break;
@@ -130,47 +113,32 @@ int main(int argc, char const *argv[]) {
     if (FD_ISSET(fellow.fd_service, &rfds)) {
       /* Respond to a client request. */
 
-      serve_client(&fellow, &my_status);
+      serve_client(&fellow);
     }
 
-    if (!fellow.nw_arrival_flag) {
-      /* One new arrival is not already connected. */
-
-      if (FD_ISSET(fellow.fd_listen, &rfds)) {
-        /* A fellow is trying to connect to this one. */
-        if (!fellow.start) {
-          /* Out of time connection. Only makes sense if this is start? */
-          /* TODO */
-        }
-
-        /* Accept new fellow. */
-        if ( (fellow.fd_nw_arrival = accept( fellow.fd_listen,
-             (struct sockaddr*) &addr_acpt, &addrlen) ) == -1 ) {
-          exit(1); /* error */
-        }
-
-        fellow.nw_arrival_flag = 1;
-        init_stream(&nw_arrival_buffer);
+    if (FD_ISSET(fellow.fd_listen, &rfds)) {
+      /* A fellow is trying to connect to this one. */
+      if (!fellow.start) {
+        /* Out of time connection. Only makes sense if this is start? */
+        printf("Erro: TCP accept by a non-start server");
       }
-    } else {
-      /* Deals with the new arrival. */
 
-      if (FD_ISSET(fellow.fd_nw_arrival, &rfds)) {
-        /* Receiving first message from new. */
+      if (fellow.prev_flag) {
+        /* Disconnects from previous. */
 
-        /* Read all. */
-        if (readto_stream(fellow.fd_prev, &ring_buffer) == -1) {
-          /* TODO */
-        }
-
-        /* Parse one message. */
-        if (get_stream(buffer, &ring_buffer) != -1) {
-          if (message_nw_arrival(buffer, &fellow) == 0) {
-            /* TODO: Error on tcp message protocol. */
-          }
-
-        }
+        close(fellow.fd_prev);
       }
+
+      /* Accept new fellow. */
+      if ( (fellow.fd_prev = accept( fellow.fd_listen,
+           (struct sockaddr*) &addr_acpt, &addrlen) ) == -1 ) {
+        printf("Erro: TCP Accept");
+        exit(1); /* error */
+      }
+      fellow.prev_flag = 1;
+
+      fellow.nw_arrival_flag = 1;
+      init_stream(&nw_arrival_buffer);
     }
 
     if (fellow.prev_flag) {
@@ -184,14 +152,29 @@ int main(int argc, char const *argv[]) {
           /* TODO: error */
         }
 
-        /* Parse while possible. */
-        while (get_stream(buffer, &ring_buffer) != -1) {
-          if (process_message(buffer, &fellow) == 0) {
-            /* TODO: Error on tcp message protocol. */
-          }
+        if (!fellow.nw_arrival_flag) {
+          /* Parse while possible. */
 
+          while (get_stream(buffer, &ring_buffer) != -1) {
+            if (process_message(buffer, &fellow) == 0) {
+              /* TODO: Error on tcp message protocol. */
+              exit_f = 1;
+            }
+
+          }
+        } else {
+          /* Parse new arrival message. */
+
+          if (get_stream(buffer, &ring_buffer) != -1) {
+            if (message_nw_arrival(buffer, &fellow) == 0) {
+              /* TODO: Error on tcp message protocol. */
+              exit_f = 1;
+            }
+          }
         }
+
       }
+
     }
   }
 
@@ -311,7 +294,7 @@ int parse_user_input(int *service) {
   }
 }
 
-void serve_client(struct fellow *fellow, enum status *my_status) {
+void serve_client(struct fellow *fellow) {
   int ret, nread, arg_read, char_read;
   socklen_t addrlen;
   char toggle[MAX_STR], msg_in[MAX_STR], msg_out[MAX_STR];
@@ -346,7 +329,7 @@ void serve_client(struct fellow *fellow, enum status *my_status) {
       exit(1); /*error*/
     }
 
-    *my_status = BUSY;
+    /* FIXME: rework this all */
   } else if (strcmp(toggle, "OFF") == 0) {
     sprintf(msg_out, "YOUR_SERVICE OFF");
     ret = sendto( fellow->fd_service, msg_out, strlen(msg_out), 0,
@@ -355,7 +338,7 @@ void serve_client(struct fellow *fellow, enum status *my_status) {
       exit(1); /*error*/
     }
 
-    *my_status = AVAILABLE;
+    /* FIXME: rework this all */
   } else {
     /* TODO: invalid message. */
 

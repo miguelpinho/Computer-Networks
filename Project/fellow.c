@@ -10,10 +10,11 @@
 void new_fellow(struct fellow *this) {
 
   /* FIXME: initialize state variables */
-  this->start = 0;
+  this->start = -1;
   this->available = -1;
   this->ring_unavailable = -1;
-  this->dispatch = 0;
+  this->dispatch = -1;
+  this->prev_flag = 0;
 
   this->service = -1;
 
@@ -90,7 +91,6 @@ void destroy_fellow(struct fellow *this) {
   close(this->next.fd_next);
   close(this->fd_listen);
   close(this->fd_prev);
-  close(this->fd_nw_arrival);
 }
 
 void register_cs(char *reply, struct fellow *fellow) {
