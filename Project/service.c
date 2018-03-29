@@ -312,7 +312,7 @@ int parse_user_input(int *service) {
 }
 
 void serve_client(struct fellow *fellow, enum status *my_status) {
-  int ret, nread;
+  int ret, nread, arg_read, char_read;
   socklen_t addrlen;
   char toggle[MAX_STR], msg_in[MAX_STR], msg_out[MAX_STR];
 
@@ -327,7 +327,16 @@ void serve_client(struct fellow *fellow, enum status *my_status) {
   msg_in[nread] = '\0';
   printf("%s\n", msg_in);
 
-  sscanf(msg_in, "MY_SERVICE %s", toggle);
+  arg_read = sscanf(msg_in, "MY_SERVICE %s%n", toggle, &char_read);
+  if (arg_read != 1) {
+    /*Argument not read*/
+    printf("Error: Invalid message");
+    exit(1);
+  }
+  if (char_read != strlen(msg_in)) {
+    printf("Error: Not every character was read");
+    exit(1);
+  }
 
   if (strcmp(toggle, "ON") == 0){
     sprintf(msg_out, "YOUR_SERVICE ON");

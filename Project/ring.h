@@ -33,7 +33,7 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
 void token_new(struct fellow *fellow, int id_start, int id_new, char *ip_new, int tpt_new);
 void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, int tpt_next);
 int exit_ring(struct fellow *fellow);
-void token_newstart( struct fellow fellow , int service, int fd_central , struct sockaddr addr_central);
+void token_new_start( struct fellow *fellow);
 
 void regist_on_central(struct fellow *fellow);
 

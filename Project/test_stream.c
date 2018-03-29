@@ -1,13 +1,48 @@
-/*
-  authors: Miguel Malaca, Miguel Pinho
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <string.h>
 
-  description:
-    functions for input stream processing
-*/
 
-#include "stream_msg.h"
+#define MESSAGE "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbccccccccccccffffffffffffggggggggggggggggghhhhhhhhhhhhhddd"
 
+#define MAX_STR 128
+#define STREAM_STR 100
+
+struct stream_buffer {
+  char stream[STREAM_STR];
+  int begin;
+  int end;
+};
+
+void init_stream(struct stream_buffer *buffer);
+int readto_stream(int fd, struct stream_buffer *str_buffer);
+int get_stream(char *dest, struct stream_buffer *buffer);
 void insert_n(struct stream_buffer *buffer, char *src, int n);
+
+int main () {
+  struct stream_buffer buffer;
+  char test[MAX_STR];
+  int i;
+
+  init_stream(&buffer);
+
+  insert_n(&buffer, MESSAGE, 102);
+
+  printf("1st: %s\n", buffer.stream);
+
+  i = get_stream(test, &buffer);
+
+  printf("2nd: %s %d\n", test, i);
+
+  return 0;
+}
 
 void init_stream(struct stream_buffer *buffer) {
 
@@ -37,6 +72,7 @@ int get_stream(char *dest, struct stream_buffer *buffer) {
   char ch;
 
   while (i != buffer->end) {
+
     if ((ch = buffer->stream[i]) == '\n') {
       if (++i >= STREAM_STR) i = 0;
       buffer->begin = i;

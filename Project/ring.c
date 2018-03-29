@@ -85,12 +85,30 @@ void send_new_start(struct fellow *fellow) {
 int process_message (char *msg, struct fellow *fellow) {
 
   char msg_data[MAX_STR], msg_type[MAX_STR], token_type, ip[MAX_STR];
-  int id, tpt, id2;
+  int id, tpt, id2, arg_read, char_read;
 
-  sscanf(msg, "%s %s", msg_type, msg_data);
+  arg_read = sscanf(msg, "%s %s%n", msg_type, msg_data, char_read);
+  if (arg_read != 2) {
+    /*Argument not read*/
+    printf("Error: Invalid message");
+    exit(1);
+  }
+  if (char_read != strlen(msg)) {
+    printf("Error: Not every character was read");
+    exit(1);
+  }
 
   if (strcmp(msg_type, "TOKEN") == 0) {
-    sscanf(msg_data, "%d;%c",&id, &token_type);
+    arg_read = sscanf(msg_data, "%d;%c%n",&id, &token_type, char_read);
+    if (arg_read != 2) {
+      /*Argument not read*/
+      printf("Error: Invalid message");
+      exit(1);
+    }
+    if (char_read != strlen(msg_data)) {
+      printf("Error: Not every character was read");
+      exit(1);
+    }
 
     printf("%c\n", token_type);
 
@@ -99,11 +117,31 @@ int process_message (char *msg, struct fellow *fellow) {
         /*TODO*/
         break;
       case 'N':
-        sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d", &id2, ip, &tpt);
+        arg_read = sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d%n", &id2, ip, &tpt, char_read);
+        if (arg_read != 3) {
+          /*Argument not read*/
+          printf("Error: Invalid message");
+          exit(1);
+        }
+        if (char_read != strlen(msg_data)) {
+          printf("Error: Not every character was read");
+          exit(1);
+        }
+
         token_new(fellow, id, id2, ip, tpt);
         break;
       case 'O':
-        sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d", &id2, ip, &tpt);
+        arg_read = sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d%n", &id2, ip, &tpt, char_read);
+        if (arg_read != 3) {
+          /*Argument not read*/
+          printf("Error: Invalid message");
+          exit(1);
+        }
+        if (char_read != strlen(msg_data)) {
+          printf("Error: Not every character was read");
+          exit(1);
+        }
+
         token_exit(fellow, id, id2, ip, tpt);
         break;
       default:
@@ -128,12 +166,31 @@ int process_message (char *msg, struct fellow *fellow) {
 int message_nw_arrival (char *msg, struct fellow *fellow) {
 
   char msg_data[MAX_STR], msg_type[MAX_STR], ip[MAX_STR];
-  int id, tpt;
+  int id, tpt, arg_read, char_read;
 
-  sscanf(msg, "%s %s", msg_type, msg_data);
+  sscanf(msg, "%s %s%n", msg_type, msg_data, char_read);
+  if (arg_read != 2) {
+    /*Argument not read*/
+    printf("Error: Invalid message");
+    exit(1);
+  }
+  if (char_read != strlen(msg)) {
+    printf("Error: Not every character was read");
+    exit(1);
+  }
 
   if (strcmp(msg_type, "NEW")== 0) {
-    sscanf(msg_data, "%d;%[^;];%d", &id, ip, &tpt);
+    arg_read = sscanf(msg_data, "%d;%[^;];%d%n", &id, ip, &tpt, char_read);
+    if (arg_read != 4) {
+      /*Argument not read*/
+      printf("Error: Invalid message");
+      exit(1);
+    }
+    if (char_read != strlen(msg_data)) {
+      printf("Error: Not every character was read");
+      exit(1);
+    }
+
     new_arrival_ring(fellow, id, tpt, ip, fellow->id);
   } else {
     printf("Error: Invalid message\n");
@@ -257,9 +314,6 @@ void token_new(struct fellow *fellow, int id_start, int id_new, char *ip_new, in
 
 /* User input exit */
 int exit_ring(struct fellow *fellow) {
-  int nsend, nrecv;
-  socklen_t addrlen;
-  char msg_out[MAX_STR], msg_in[MAX_STR];
 
   /* Manage availability inheritance. */
   /* TODO */
@@ -336,7 +390,7 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
       /* This is the one after the one leaving. */
 
       /* Disconnect from leaving fellow */
-      close(fellow->prev);
+      close(fellow->fd_prev);
     }
 
     /* pass the O token */
@@ -344,7 +398,7 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
 
     if (fellow->id == id_next) {
       /* Accept previous previous. */
-      if ( (fellow->fd_prev = accept( fellow.fd_listen,
+      if ( (fellow->fd_prev = accept( fellow->fd_listen,
            (struct sockaddr*) &addr, &addrlen) ) == -1 ) {
         exit(1); /* error */
       }
@@ -415,15 +469,24 @@ void get_state() {
 /*****STEP 3 END*****/
 
 void regist_on_central(struct fellow *fellow) {
-  int id_start, tpt_start;
+  int id_start, tpt_start, arg_read, char_read;
   char ip_start[MAX_STR];
   char msg[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR];
   char test_data[MAX_STR];
-  socklen_t addrlen;
 
   register_cs(msg, fellow);
 
-  sscanf(msg, "%s %s", msg_type, msg_data);
+  arg_read = sscanf(msg, "%s %s%n", msg_type, msg_data, char_read);
+  if (arg_read != 2) {
+    /*Argument not read*/
+    printf("Error: Invalid message");
+    exit(1);
+  }
+  if (char_read != strlen(msg)) {
+    printf("Error: Not every character was read");
+    exit(1);
+  }
+
   if (strcmp(msg_type, "OK") != 0) {
     printf("Erro: msg\n");
     /* TODO */
