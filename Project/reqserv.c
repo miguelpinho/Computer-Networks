@@ -73,7 +73,7 @@ int main(int argc, char const *argv[])
 }
 
 void get_arguments (int argc, const char *argv[], char *csip, int *cspt) {
-  int i, arg_read, char_read;
+  int i;
   char ident;
   int csi = 0, csp = 0;
   struct hostent *h;
@@ -118,13 +118,14 @@ void get_arguments (int argc, const char *argv[], char *csip, int *cspt) {
 
 int parse_user_input(int *service) {
   char buffer[MAX_STR], cmd[MAX_STR];
+	int arg_read, char_read;
 
   if (fgets(buffer, MAX_STR, stdin) == NULL) {
     /* Nothing to read. */
 		return IN_ERROR;
   }
 
-  arg_read = sscanf(buffer, "%s%n", cmd, char_read);
+  arg_read = sscanf(buffer, "%s%n", cmd, &char_read);
 	if (arg_read != 1) {
 		/*Argument not read*/
 		printf("Error: Invalid message");
@@ -139,7 +140,7 @@ int parse_user_input(int *service) {
   if (strcmp(cmd, "rs") == 0) {
     /* Request service x */
 		if (*service == -1) {
-			arg_read = sscanf(buffer, "%*s %d%n", service, char_read);
+			arg_read = sscanf(buffer, "%*s %d%n", service, &char_read);
 			if (arg_read != 2) {
 	      /*Argument not read*/
 	      printf("Error: Invalid message");
@@ -177,7 +178,7 @@ int parse_user_input(int *service) {
 
 void request_service(int *service, int fd_udp, int *fd_udp_serv, struct sockaddr_in addr_central, struct sockaddr_in *addr_service, socklen_t *addrlen, int *id, char *ip, int *upt) {
   char msg_in[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR];
-  int nsend, nrecv;
+  int nsend, nrecv,  arg_read, char_read;
 
   /* Check if there is one server with the wanted service. */
   sprintf(msg_out, "GET_DS_SERVER %d", *service);
@@ -195,7 +196,7 @@ void request_service(int *service, int fd_udp, int *fd_udp_serv, struct sockaddr
   msg_in[nrecv] = '\0';
   printf("%s\n", msg_in);
 
-  arg_read = sscanf(msg_in, "%s %d;%s%n", msg_type, id, msg_data, char_read);
+  arg_read = sscanf(msg_in, "%s %d;%s%n", msg_type, id, msg_data, &char_read);
 	if (arg_read != 3) {
 		/*Argument not read*/
 		printf("Error: Invalid message");
@@ -213,7 +214,7 @@ void request_service(int *service, int fd_udp, int *fd_udp_serv, struct sockaddr
     /* Service found */
     if (strcmp(msg_data, "0.0.0.0;0") != 0 && *id != 0) {
 
-			arg_read = sscanf(msg_data, "%[^;];%d%n", ip, upt, char_read);
+			arg_read = sscanf(msg_data, "%[^;];%d%n", ip, upt, &char_read);
 			if (arg_read != 2) {
 	      /*Argument not read*/
 	      printf("Error: Invalid message");

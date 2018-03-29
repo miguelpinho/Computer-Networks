@@ -87,7 +87,7 @@ int process_message (char *msg, struct fellow *fellow) {
   char msg_data[MAX_STR], msg_type[MAX_STR], token_type, ip[MAX_STR];
   int id, tpt, id2, arg_read, char_read;
 
-  arg_read = sscanf(msg, "%s %s%n", msg_type, msg_data, char_read);
+  arg_read = sscanf(msg, "%s %s%n", msg_type, msg_data, &char_read);
   if (arg_read != 2) {
     /*Argument not read*/
     printf("Error: Invalid message");
@@ -99,7 +99,7 @@ int process_message (char *msg, struct fellow *fellow) {
   }
 
   if (strcmp(msg_type, "TOKEN") == 0) {
-    arg_read = sscanf(msg_data, "%d;%c%n",&id, &token_type, char_read);
+    arg_read = sscanf(msg_data, "%d;%c%n",&id, &token_type, &char_read);
     if (arg_read != 2) {
       /*Argument not read*/
       printf("Error: Invalid message");
@@ -117,7 +117,7 @@ int process_message (char *msg, struct fellow *fellow) {
         /*TODO*/
         break;
       case 'N':
-        arg_read = sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d%n", &id2, ip, &tpt, char_read);
+        arg_read = sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d%n", &id2, ip, &tpt, &char_read);
         if (arg_read != 3) {
           /*Argument not read*/
           printf("Error: Invalid message");
@@ -131,7 +131,7 @@ int process_message (char *msg, struct fellow *fellow) {
         token_new(fellow, id, id2, ip, tpt);
         break;
       case 'O':
-        arg_read = sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d%n", &id2, ip, &tpt, char_read);
+        arg_read = sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d%n", &id2, ip, &tpt, &char_read);
         if (arg_read != 3) {
           /*Argument not read*/
           printf("Error: Invalid message");
@@ -168,7 +168,7 @@ int message_nw_arrival (char *msg, struct fellow *fellow) {
   char msg_data[MAX_STR], msg_type[MAX_STR], ip[MAX_STR];
   int id, tpt, arg_read, char_read;
 
-  sscanf(msg, "%s %s%n", msg_type, msg_data, char_read);
+  arg_read = sscanf(msg, "%s %s%n", msg_type, msg_data, &char_read);
   if (arg_read != 2) {
     /*Argument not read*/
     printf("Error: Invalid message");
@@ -180,7 +180,7 @@ int message_nw_arrival (char *msg, struct fellow *fellow) {
   }
 
   if (strcmp(msg_type, "NEW")== 0) {
-    arg_read = sscanf(msg_data, "%d;%[^;];%d%n", &id, ip, &tpt, char_read);
+    arg_read = sscanf(msg_data, "%d;%[^;];%d%n", &id, ip, &tpt, &char_read);
     if (arg_read != 4) {
       /*Argument not read*/
       printf("Error: Invalid message");
@@ -506,7 +506,16 @@ void regist_on_central(struct fellow *fellow) {
       fellow->ring_unavailable = 0;
 
     } else {
-      sscanf(msg_data, "%*d;%d;%[^; ];%d", &id_start, ip_start, &tpt_start);
+      arg_read = sscanf(msg_data, "%*d;%d;%[^; ];%d%n", &id_start, ip_start, &tpt_start, &char_read);
+      if (arg_read != 3) {
+	      /*Argument not read*/
+	      printf("Error: Invalid message");
+	      exit(1);
+	    }
+	    if (char_read != strlen(msg_data)) {
+	      printf("Error: Not every character was read");
+	      exit(1);
+	    }
 
       join_ring(fellow, tpt_start, ip_start, id_start);
     }

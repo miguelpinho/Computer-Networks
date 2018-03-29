@@ -27,10 +27,17 @@ int get_stream(char *dest, struct stream_buffer *buffer);
 void insert_n(struct stream_buffer *buffer, char *src, int n);
 
 int main () {
-  struct stream_buffer buffer;
   char test[MAX_STR];
-  int i;
+  int i, int1, int2, int3, cr;
 
+  fgets(test, MAX_STR, stdin);
+
+  i = sscanf(test ,"%d %d %d%n", &int1, &int2, &int3, &cr);
+ 
+  printf("%d %d %d %d %d\n", int1, int2, int3, i, cr);
+
+
+  /*
   init_stream(&buffer);
 
   insert_n(&buffer, MESSAGE, 102);
@@ -40,7 +47,7 @@ int main () {
   i = get_stream(test, &buffer);
 
   printf("2nd: %s %d\n", test, i);
-
+ */
   return 0;
 }
 

@@ -261,7 +261,7 @@ void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, in
 
 int parse_user_input(int *service) {
   char buffer[MAX_STR], cmd[MAX_STR];
-  int new_sv;
+  int new_sv, arg_read, char_read;
 
   if (fgets(buffer, MAX_STR, stdin) == NULL) {
     /* Nothing to read. */
@@ -269,12 +269,31 @@ int parse_user_input(int *service) {
     return IN_ERROR;
   }
 
-  sscanf(buffer, "%s", cmd);
+  arg_read = sscanf(buffer, "%s%n", cmd, &char_read);
+  if (arg_read != 1) {
+		/*Argument not read*/
+		printf("Error: Invalid message");
+		exit(1);
+	}
+	if (char_read != strlen(buffer)) {
+		printf("Error: Not every character was read");
+		exit(1);
+	}
+
 
   /* Parse input. */
   if (strcmp(cmd, "join") == 0) {
     /* Read service id. */
-    sscanf(buffer, "%*s %d", &new_sv);
+    arg_read = sscanf(buffer, "%*s %d%n", &new_sv, &char_read);
+    if (arg_read != 2) {
+      /*Argument not read*/
+      printf("Error: Invalid message");
+      exit(1);
+    }
+    if (char_read != strlen(buffer)) {
+      printf("Error: Not every character was read");
+      exit(1);
+    }
 
     /* Check if this server alreay belongs to a service ring. */
     if (*service != -1) {
