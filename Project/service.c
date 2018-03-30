@@ -8,7 +8,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
-#include "stream_msg.h"
 #include "fellow.h"
 #include "ring.h"
 
@@ -24,13 +23,15 @@ int parse_user_input(int *service);
 void serve_client(struct fellow *fellow);
 
 int main(int argc, char const *argv[]) {
-  int sel_in, exit_f = 0, counter;
-  int max_fd = 0;
+  int sel_in, exit_f = 0, max_fd = 0;
+  int counter, ret;
   fd_set rfds;
   char buffer[MAX_STR];
   struct fellow fellow;
   struct sockaddr addr_acpt;
   socklen_t addrlen = sizeof(addr_acpt);
+
+  buffer[0] = '\0';
 
   new_fellow(&fellow);
 
@@ -68,34 +69,17 @@ int main(int argc, char const *argv[]) {
         /* Message(s) from previous. */
 
         /* Read input. */
-        if (read_stream(&fellow, buffer) == 0) {
+        ret = read_stream(&fellow, buffer);
+        if (ret == 0) {
           /* The previous disconnected */
           fellow.prev_flag = 0;
           close(fellow.fd_prev);
 
           printf("PROTOCOL: the previous disconnect TCP\n");
-        } else {
-          if (fellow.nw_arrival_flag == 0) {
-            /* Parse the message. */
+        } else if (ret == 1) {
+          /* Invalid input message. */
 
-            printf("TCP_MSG: \"%s\"\n", buffer);
-
-            if (process_message(buffer, &fellow) == 0) {
-              /* TODO: Error on tcp message protocol. */
-              exit_f = 1;
-            }
-
-          } else {
-            /* Parse new arrival message. */
-
-            printf("TCP_MSG: \"%s\"\n", buffer);
-
-            if (message_nw_arrival(buffer, &fellow) == 0) {
-              /* TODO: Error on tcp message protocol. */
-              exit_f = 1;
-
-            }
-          }
+          exit_f = 1;
         }
       }
 
@@ -165,6 +149,8 @@ int main(int argc, char const *argv[]) {
 
         printf("PROTOCOL: disconnect from previous\n");
         close(fellow.fd_prev);
+
+        fellow.prev_flag = 0;
       }
 
       /* Accept new fellow. */
@@ -176,7 +162,10 @@ int main(int argc, char const *argv[]) {
         exit(1); /* error */
       }
       printf("PROTOCOL: accepted NEW\n");
+
+      /* Mark it is listining to a fellow and clean input buffer. */
       fellow.prev_flag = 1;
+      buffer[0] = '\0';
 
       fellow.nw_arrival_flag = 1;
     }

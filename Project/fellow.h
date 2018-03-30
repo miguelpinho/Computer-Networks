@@ -18,7 +18,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
-#include "stream_msg.h"
+
+#define MAX_STR 128
 
 /* next server in the fellowship ring */
 struct next_fellow {

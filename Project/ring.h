@@ -19,7 +19,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
-#include "stream_msg.h"
 #include "fellow.h"
 
 void send_token(char token_type, struct fellow *fellow, int id, int id2, char *ip, int tpt);

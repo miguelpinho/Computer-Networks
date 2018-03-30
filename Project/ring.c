@@ -88,40 +88,57 @@ void send_new_start(struct fellow *fellow) {
 	}
 }
 
-int read_stream(struct fellow *fellow, char msg[MAX_STR]) {
+int read_stream(struct fellow *fellow, char buffer[MAX_STR]) {
   int n, total = 0;
-  char buffer[MAX_STR], *ch;
+  char msg_in[MAX_STR], tmp[MAX_STR], msg_parse[MAX_STR], *ch, *cur;
 
-  msg[0] = '\0';
+  strcpy(tmp, buffer);
 
-  while (1) {
-    n = read(fellow->fd_prev, buffer, MAX_STR);
+  n = read(fellow->fd_prev, msg_in, MAX_STR);
 
-    if (n == -1) {
-      printf("Error: read TCP");
-      exit(1); /* error */
-    } else if (n == 0) {
-      /* The previous disconnected */
+  if (n == -1) {
+    printf("Error: read TCP");
+    exit(1); /* error */
+  } else if (n == 0) {
+    /* The previous disconnected */
 
-      return 0;
-    }
+    return 0;
+  }
 
-    buffer[n] = '\0';
+  msg_in[n] = '\0';
 
-    if ((ch = strchr(buffer, '\n')) != NULL) {
-      if (*(ch + 1) != '\0') {
-        printf("Error: Read garbage: \"%s\"", ch + 1);
-        exit(1);
+  strcat(tmp, msg_in);
+
+  cur = &(tmp[0]);
+  while ((ch = strchr(cur, '\n')) != NULL) {
+    *(ch) = '\0';
+
+    strcpy(msg_parse, cur);
+
+    if (fellow->nw_arrival_flag == 0) {
+      /* Parse the message. */
+
+      if (process_message(msg_parse, fellow) == 0) {
+        /* TODO: Error on tcp message protocol. */
+
+        return -1;
+
       }
 
-      *ch = '\0';
-      strcat(msg, buffer);
-
-      break;
     } else {
-      strcat(msg, buffer);
+      /* Parse new arrival message. */
+
+      if (message_nw_arrival(msg_parse, fellow) == 0) {
+        /* TODO: Error on tcp msg_parse protocol. */
+
+        return -1;
+      }
     }
+
+    cur = ch+1;
   }
+
+  strcpy(buffer, cur);
 
   return n;
 }
