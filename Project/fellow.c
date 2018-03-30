@@ -84,6 +84,13 @@ void destroy_fellow(struct fellow *this) {
   close(this->fd_prev);
 }
 
+void show_state(struct fellow *fellow) {
+  printf("Estado do service (id = %d): \n", fellow->id);
+  printf("\teste: %s\n", (fellow->available == 1)?"disponível":"indisponível");
+  printf("\tanel: %s\n", (fellow->ring_unavailable == 0)?"disponível":"indisponível");
+  printf("\tseguinte: id = %d\n", fellow->next.id);
+}
+
 void register_cs(char *reply, struct fellow *fellow) {
   char msg_out[MAX_STR], msg_in[MAX_STR];
   int nsend, nrecv;

@@ -68,30 +68,35 @@ int main(int argc, char const *argv[]) {
         /* Message(s) from previous. */
 
         /* Read input. */
-        read_stream(&fellow, buffer);
+        if (read_stream(&fellow, buffer) == 0) {
+          /* The previous disconnected */
+          fellow.prev_flag = 0;
+          close(fellow.fd_prev);
 
-        if (!fellow.nw_arrival_flag) {
-          /* Parse the message. */
-
-          printf("TCP_MSG: \"%s\"\n", buffer);
-
-          if (process_message(buffer, &fellow) == 0) {
-            /* TODO: Error on tcp message protocol. */
-            exit_f = 1;
-          }
-
+          printf("PROTOCOL: the previous disconnect TCP\n");
         } else {
-          /* Parse new arrival message. */
+          if (!fellow.nw_arrival_flag) {
+            /* Parse the message. */
 
-          printf("TCP_MSG: \"%s\"\n", buffer);
+            printf("TCP_MSG: \"%s\"\n", buffer);
 
-          if (message_nw_arrival(buffer, &fellow) == 0) {
-            /* TODO: Error on tcp message protocol. */
-            exit_f = 1;
+            if (process_message(buffer, &fellow) == 0) {
+              /* TODO: Error on tcp message protocol. */
+              exit_f = 1;
+            }
 
+          } else {
+            /* Parse new arrival message. */
+
+            printf("TCP_MSG: \"%s\"\n", buffer);
+
+            if (message_nw_arrival(buffer, &fellow) == 0) {
+              /* TODO: Error on tcp message protocol. */
+              exit_f = 1;
+
+            }
           }
         }
-
       }
 
     }
@@ -112,11 +117,12 @@ int main(int argc, char const *argv[]) {
 
           break;
         case IN_STATE:
-          /* TODO: print state. */
+          /* Print server state. */
+          show_state(&fellow);
 
           break;
         case IN_LEAVE:
-          /* TODO: Leave the service ring. */
+          /* Leave the service ring. */
 
           exit_ring(&fellow);
           break;
@@ -163,6 +169,7 @@ int main(int argc, char const *argv[]) {
 
       /* Accept new fellow. */
       printf("PROTOCOL: will accept NEW\n");
+      addrlen = sizeof(addr_acpt);
       if ( (fellow.fd_prev = accept( fellow.fd_listen,
            (struct sockaddr*) &addr_acpt, &addrlen) ) == -1 ) {
         printf("Erro: TCP Accept");
