@@ -92,7 +92,7 @@ int read_stream(struct fellow *fellow, char msg[MAX_STR]) {
   int n, total = 0;
   char buffer[MAX_STR], *ch;
 
-  msg[0] = '\n';
+  msg[0] = '\0';
 
   while (1) {
     n = read(fellow->fd_prev, buffer, MAX_STR);
@@ -202,7 +202,7 @@ int process_message (char *msg, struct fellow *fellow) {
   return 1;
 
 error_msg:
-  printf("Error: Invalid message (new server): \"%s\"\n", msg);
+  printf("Error: Invalid message: \"%s\"\n", msg);
   return 0;
 }
 
@@ -332,6 +332,8 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
 
     /* TODO: Do not wait for desconnection from tail */
   }
+
+  fellow->nw_arrival_flag = 0;
 
 }
 

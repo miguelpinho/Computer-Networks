@@ -15,6 +15,7 @@ void new_fellow(struct fellow *this) {
   this->ring_unavailable = -1;
   this->dispatch = -1;
   this->prev_flag = 0;
+  this->nw_arrival_flag = 0;
 
   this->service = -1;
 
@@ -50,13 +51,15 @@ void create_sockets(struct fellow *fellow) {
   ret = bind( fellow->fd_service, (struct sockaddr*) &(addr_service),
               sizeof(addr_service) );
   if (ret == -1) {
-    printf("Error: bind\n");
+    printf("Error: bind service socket (upt)\n");
 
     exit(1); /*error*/
   }
 
   /* Create listen socket */
   if ((fellow->fd_listen = socket(AF_INET,SOCK_STREAM,0)) == -1) {
+    printf("Error: socket listen");
+
     exit(1); /* error */
   }
 
@@ -67,10 +70,14 @@ void create_sockets(struct fellow *fellow) {
   addr_fellow.sin_port = htons(fellow->tpt);
 
   if (bind(fellow->fd_listen, (struct sockaddr*) &addr_fellow, sizeof(addr_fellow)) == -1) {
+    printf("Error: bind listen socket (tpt)\n");
+
     exit(1); /* error */
   }
 
   if (listen(fellow->fd_listen, 5) == -1) {
+    printf("Error: listen\n");
+
     exit(1); /* error */
   }
 }

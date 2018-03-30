@@ -75,7 +75,7 @@ int main(int argc, char const *argv[]) {
 
           printf("PROTOCOL: the previous disconnect TCP\n");
         } else {
-          if (!fellow.nw_arrival_flag) {
+          if (fellow.nw_arrival_flag == 0) {
             /* Parse the message. */
 
             printf("TCP_MSG: \"%s\"\n", buffer);
