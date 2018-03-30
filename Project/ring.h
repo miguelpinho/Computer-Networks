@@ -25,6 +25,7 @@
 void send_token(char token_type, struct fellow *fellow, int id, int id2, char *ip, int tpt);
 void send_new(struct fellow *fellow);
 void send_new_start(struct fellow *fellow);
+int read_stream(struct fellow *fellow, char msg[MAX_STR]);
 int process_message (char *msg, struct fellow *fellow);
 int message_nw_arrival (char *msg, struct fellow *fellow);
 

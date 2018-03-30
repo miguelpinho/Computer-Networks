@@ -30,6 +30,8 @@ void send_token(char token_type, struct fellow *fellow, int id, int id2, char *i
 
 	ptr = &msg_out[0];
 
+  printf("PROTOCOL: Will send token %c\n", token_type);
+
 	nleft = strlen(msg_out);
 	while(nleft > 0) {
 		nwritten = write(fellow->next.fd_next, ptr, nleft);
@@ -49,6 +51,8 @@ void send_new(struct fellow *fellow) {
   sprintf(msg_out, "NEW %d;%s;%d\n", fellow->id, fellow->ip, fellow->tpt);
 
   ptr = &msg_out[0];
+
+  printf("PROTOCOL: Will send NEW\n");
 
   nleft = strlen(msg_out);
 	while(nleft > 0) {
@@ -70,6 +74,8 @@ void send_new_start(struct fellow *fellow) {
 
   ptr = &msg_out[0];
 
+  printf("PROTOCOL: Will send NEW_START\n");
+
   nleft = strlen(msg_out);
 	while(nleft > 0) {
 		nwritten = write(fellow->next.fd_next, ptr, nleft);
@@ -82,10 +88,48 @@ void send_new_start(struct fellow *fellow) {
 	}
 }
 
+int read_stream(struct fellow *fellow, char msg[MAX_STR]) {
+  int n, total = 0;
+  char buffer[MAX_STR], *ch;
+
+  while (1) {
+    n = read(fellow->fd_prev, buffer, MAX_STR);
+
+    if (n == -1) {
+      printf("Error: read TCP");
+      exit(1); /* error */
+    } else if (n == 0) {
+      /* The previous disconnect */
+      fellow->prev_flag = 0;
+      close(fellow->fd_prev);
+    }
+
+    buffer[n] = '\0';
+
+    if (ch = strchr(buffer, '\n') != NULL) {
+      if (*(ch + 1) != '\0') {
+        printf("Error: Read garbage: \"%s\"", ch + 1);
+        exit(1);
+      }
+
+      *ch = '\0';
+      strcat(msg, buffer);
+
+      break;
+    } else {
+      strcat(msg, buffer);
+    }
+  }
+
+  return 1;
+}
+
 int process_message (char *msg, struct fellow *fellow) {
 
   char msg_data[MAX_STR], msg_type[MAX_STR], token_type, ip[MAX_STR];
   int id, tpt, id2, arg_read, char_read;
+
+  printf("TCP_MSG: \"%s\"\n", msg);
 
   arg_read = sscanf(msg, "%s %s%n", msg_type, msg_data, &char_read);
   if (arg_read != 2) {
@@ -165,11 +209,12 @@ int message_nw_arrival (char *msg, struct fellow *fellow) {
   char msg_data[MAX_STR], msg_type[MAX_STR], ip[MAX_STR];
   int id, tpt, arg_read, char_read;
 
+  printf("TCP_MSG: \"%s\"\n", msg);
+
   arg_read = sscanf(msg, "%s %s%n", msg_type, msg_data, &char_read);
   if (arg_read != 2) {
     /*Argument not read*/
-    printf("Error: Invalid message");
-    exit(1);
+    goto error_msg;
   }
   if (char_read != strlen(msg)) {
     /*Garbage characters*/
@@ -178,7 +223,7 @@ int message_nw_arrival (char *msg, struct fellow *fellow) {
 
   if (strcmp(msg_type, "NEW")== 0) {
     arg_read = sscanf(msg_data, "%d;%[^;];%d%n", &id, ip, &tpt, &char_read);
-    if (arg_read != 4) {
+    if (arg_read != 3) {
       /*Argument not read*/
       goto error_msg;
     }
@@ -221,18 +266,26 @@ void join_ring(struct fellow *fellow , int tpt_start , char *ip_start, int id_st
   addr_next.sin_addr.s_addr = inet_addr(ip_start);
   addr_next.sin_port = htons(tpt_start);
 
+  printf("PROTOCOL: will connect to START\n");
+
   n = connect(fellow->next.fd_next, (struct sockaddr*) &addr_next, sizeof(addr_next));
 	if (n == -1) {
     exit(1); /* error */
   }
 
+  printf("PROTOCOL: connected to START\n");
+
   /* Communicate to start it wants to enter the ring. */
   send_new(fellow);
+
+  printf("PROTOCOL: will accept connection\n");
 
   /* wait for connection */
   if ((fellow->fd_prev = accept(fellow->fd_listen, (struct sockaddr*) &addr, &addrlen)) == -1) {
     exit(1); /* error */
   }
+
+  printf("PROTOCOL: accepted connection\n");
 
   fellow->prev_flag = 1;
 
@@ -252,17 +305,22 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
     fellow->next.tpt = tpt_new;
     strcpy(fellow->next.ip, ip_new);
 
-    fellow->next.fd_next=socket(AF_INET,SOCK_STREAM,0);
+    fellow->next.fd_next = socket(AF_INET,SOCK_STREAM,0);
   	if(fellow->next.fd_next==-1) exit(1);/* error */
 
     addr_new.sin_family = AF_INET;
     addr_new.sin_addr.s_addr = inet_addr(ip_new);
     addr_new.sin_port = htons(tpt_new);
 
+    printf("PROTOCOL: START will connect to NEW\n");
+
     n = connect(fellow->next.fd_next, (struct sockaddr*) &addr_new, sizeof(addr_new));
     if (n==-1) {
       exit(1); /* error */
+      printf("Error: failed to connect to NEW\n");
     }
+
+    printf("PROTOCOL: START will connect to NEW\n");
 
   } else {
     /* There are more fellows in the ring. Pass token to warn tail. */

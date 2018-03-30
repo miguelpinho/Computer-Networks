@@ -27,12 +27,8 @@ int main(int argc, char const *argv[]) {
   int sel_in, exit_f = 0, counter;
   int max_fd = 0;
   fd_set rfds;
-  /*int nread, st_id, st_tpt;*/
   char buffer[MAX_STR];
-
   struct fellow fellow;
-  struct stream_buffer ring_buffer, nw_arrival_buffer;
-
   struct sockaddr addr_acpt;
   socklen_t addrlen = sizeof(addr_acpt);
 
@@ -63,6 +59,41 @@ int main(int argc, char const *argv[]) {
       printf("Error: select\n");
 
       exit(1); /*error*/
+    }
+
+    if (fellow.prev_flag) {
+      /* There is a previous. */
+
+      if (FD_ISSET(fellow.fd_prev, &rfds)) {
+        /* Message(s) from previous. */
+
+        /* Read input. */
+        read_stream(&fellow, buffer);
+
+        if (!fellow.nw_arrival_flag) {
+          /* Parse the message. */
+
+          printf("TCP_MSG: \"%s\"\n", buffer);
+
+          if (process_message(buffer, &fellow) == 0) {
+            /* TODO: Error on tcp message protocol. */
+            exit_f = 1;
+          }
+
+        } else {
+          /* Parse new arrival message. */
+
+          printf("TCP_MSG: \"%s\"\n", buffer);
+
+          if (message_nw_arrival(buffer, &fellow) == 0) {
+            /* TODO: Error on tcp message protocol. */
+            exit_f = 1;
+
+          }
+        }
+
+      }
+
     }
 
     if (FD_ISSET(fellow.fd_central, &rfds)) {
@@ -126,55 +157,21 @@ int main(int argc, char const *argv[]) {
       if (fellow.prev_flag) {
         /* Disconnects from previous. */
 
+        printf("PROTOCOL: disconnect from previous\n");
         close(fellow.fd_prev);
       }
 
       /* Accept new fellow. */
+      printf("PROTOCOL: will accept NEW\n");
       if ( (fellow.fd_prev = accept( fellow.fd_listen,
            (struct sockaddr*) &addr_acpt, &addrlen) ) == -1 ) {
         printf("Erro: TCP Accept");
         exit(1); /* error */
       }
+      printf("PROTOCOL: accepted NEW\n");
       fellow.prev_flag = 1;
 
       fellow.nw_arrival_flag = 1;
-      init_stream(&nw_arrival_buffer);
-    }
-
-    if (fellow.prev_flag) {
-      /* There is a previous. */
-
-      if (FD_ISSET(fellow.fd_prev, &rfds)) {
-        /* Message(s) from previous. */
-
-        /* Read all. */
-        if (readto_stream(fellow.fd_prev, &ring_buffer) == -1) {
-          /* TODO: error */
-        }
-
-        if (!fellow.nw_arrival_flag) {
-          /* Parse while possible. */
-
-          while (get_stream(buffer, &ring_buffer) != -1) {
-            if (process_message(buffer, &fellow) == 0) {
-              /* TODO: Error on tcp message protocol. */
-              exit_f = 1;
-            }
-
-          }
-        } else {
-          /* Parse new arrival message. */
-
-          if (get_stream(buffer, &ring_buffer) != -1) {
-            if (message_nw_arrival(buffer, &fellow) == 0) {
-              /* TODO: Error on tcp message protocol. */
-              exit_f = 1;
-            }
-          }
-        }
-
-      }
-
     }
   }
 

@@ -23,6 +23,8 @@ int readto_stream(int fd, struct stream_buffer *str_buffer) {
     if (n == -1) {
       exit(1); /* error */
     }
+    /*buffer[n] = '\0';
+    printf("READ: \"%s\"\n", buffer);*/
 
     insert_n(str_buffer, buffer, n);
 
@@ -37,6 +39,8 @@ int get_stream(char *dest, struct stream_buffer *buffer) {
   char ch;
 
   while (i != buffer->end) {
+    printf("%c", buffer->stream[i]);
+
     if ((ch = buffer->stream[i]) == '\n') {
       if (++i >= STREAM_STR) i = 0;
       buffer->begin = i;
