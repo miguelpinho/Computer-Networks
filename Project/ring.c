@@ -17,10 +17,10 @@ void send_token(char token_type, struct fellow *fellow, int id, int id2, char *i
       sprintf(msg_out, "TOKEN %d;%c\n", id, token_type);
       break;
     case 'N':
-      sprintf( msg_out, "%d;%c;%d;%s;%d\n", id, token_type, id2, ip, tpt);
+      sprintf(msg_out, "TOKEN %d;%c;%d;%s;%d\n", id, token_type, id2, ip, tpt);
       break;
     case 'O':
-      sprintf( msg_out, "%d;%c;%d;%s;%d\n", id, token_type, id2, ip, tpt);
+      sprintf(msg_out, "TOKEN %d;%c;%d;%s;%d\n", id, token_type, id2, ip, tpt);
       break;
     default:
       printf("Error: Token type not known\n");
@@ -144,13 +144,9 @@ int process_message (char *msg, struct fellow *fellow) {
   }
 
   if (strcmp(msg_type, "TOKEN") == 0) {
-    arg_read = sscanf(msg_data, "%d;%c%n",&id, &token_type, &char_read);
+    arg_read = sscanf(msg_data, "%d;%c",&id, &token_type);
     if (arg_read != 2) {
       /*Argument not read*/
-      goto error_msg;
-    }
-    if (char_read != strlen(msg_data)) {
-      /*Garbage characters*/
       goto error_msg;
     }
 
