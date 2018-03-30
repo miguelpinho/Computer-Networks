@@ -133,18 +133,14 @@ int process_message (char *msg, struct fellow *fellow) {
 
   printf("TCP_MSG: \"%s\"\n", msg);
 
-  arg_read = sscanf(msg, "%s %s%n", msg_type, msg_data, &char_read);
-  if (arg_read != 2) {
+  arg_read = sscanf(msg, "%s", msg_type);
+  if (arg_read != 1) {
     /*Argument not read*/
-    goto error_msg;
-  }
-  if (char_read != strlen(msg)) {
-    /*Garbage characters*/
     goto error_msg;
   }
 
   if (strcmp(msg_type, "TOKEN") == 0) {
-    arg_read = sscanf(msg_data, "%d;%c",&id, &token_type);
+    arg_read = sscanf(msg, "%*s %d;%c",&id, &token_type);
     if (arg_read != 2) {
       /*Argument not read*/
       goto error_msg;
@@ -157,12 +153,12 @@ int process_message (char *msg, struct fellow *fellow) {
         /*TODO*/
         break;
       case 'N':
-        arg_read = sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d%n", &id2, ip, &tpt, &char_read);
+        arg_read = sscanf(msg, "%*s %*d;%*c;%d;%[^; ];%d%n", &id2, ip, &tpt, &char_read);
         if (arg_read != 3) {
           /*Argument not read*/
           goto error_msg;
         }
-        if (char_read != strlen(msg_data)) {
+        if (char_read != strlen(msg)) {
           /*Garbage characters*/
           goto error_msg;
         }
@@ -170,12 +166,12 @@ int process_message (char *msg, struct fellow *fellow) {
         token_new(fellow, id, id2, ip, tpt);
         break;
       case 'O':
-        arg_read = sscanf(msg_data, "%*d;%*c;%d;%[^; ];%d%n", &id2, ip, &tpt, &char_read);
+        arg_read = sscanf(msg, "%*s %*d;%*c;%d;%[^; ];%d%n", &id2, ip, &tpt, &char_read);
         if (arg_read != 3) {
           /*Argument not read*/
           goto error_msg;
         }
-        if (char_read != strlen(msg_data)) {
+        if (char_read != strlen(msg)) {
           /*Garbage characters*/
           goto error_msg;
         }
@@ -185,12 +181,12 @@ int process_message (char *msg, struct fellow *fellow) {
       default:
         goto error_msg;
     }
-  /*} else if (strcmp(msg_type, "NEW")== 0) {
-      sscanf(msg_data, "%d;%[^;];%d", &id, ip, &tpt);
-      new_arrival_ring(fellow, id, tpt, ip, fellow->id);*/
-  } else if (strcmp(msg_type, "NEW_START") == 0)   {
-      token_new_start(fellow);
+  /* FIXME: check NEW??? */
+  } else if (strcmp(msg, "NEW_START") == 0)   {
+
+    token_new_start(fellow);
   } else {
+
     goto error_msg;
   }
 
@@ -306,7 +302,10 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
     strcpy(fellow->next.ip, ip_new);
 
     fellow->next.fd_next = socket(AF_INET,SOCK_STREAM,0);
-  	if(fellow->next.fd_next==-1) exit(1);/* error */
+  	if(fellow->next.fd_next==-1) {
+      printf("Error: socket creation");
+      exit(1);/* error */
+    }
 
     addr_new.sin_family = AF_INET;
     addr_new.sin_addr.s_addr = inet_addr(ip_new);
@@ -316,8 +315,8 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
 
     n = connect(fellow->next.fd_next, (struct sockaddr*) &addr_new, sizeof(addr_new));
     if (n==-1) {
-      exit(1); /* error */
       printf("Error: failed to connect to NEW\n");
+      exit(1); /* error */
     }
 
     printf("PROTOCOL: START connected to NEW\n");
@@ -448,10 +447,11 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
       addr.sin_addr.s_addr = inet_addr(ip_next);
       addr.sin_port = htons(tpt_next);
 
+      addrlen = sizeof(addr);
       n = connect(fellow->next.fd_next, (struct sockaddr*) &addr, sizeof(addr));
     	if (n == -1) {
-        exit(1); /* error */
         printf("Error: TCP connect in exit protocol\n");
+        exit(1); /* error */
       }
 
     }
@@ -469,10 +469,11 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
 
     if (fellow->id == id_next) {
       /* Accept previous previous. */
+      addrlen = sizeof(addrlen);
       if ( (fellow->fd_prev = accept( fellow->fd_listen,
            (struct sockaddr*) &addr, &addrlen) ) == -1 ) {
-        exit(1); /* error */
         printf("Error: TCP accept in exit protocol\n");
+        exit(1); /* error */
       }
       fellow->prev_flag = 1;
     }
