@@ -131,23 +131,15 @@ int parse_user_input(int *service) {
 		printf("Error: Invalid message");
 		exit(1);
 	}
-	if (char_read != strlen(buffer)) {
-		printf("Error: Not every character was read");
-		exit(1);
-	}
 
   /* Parse input. */
   if (strcmp(cmd, "rs") == 0) {
     /* Request service x */
 		if (*service == -1) {
 			arg_read = sscanf(buffer, "%*s %d%n", service, &char_read);
-			if (arg_read != 2) {
+			if (arg_read != 1) {
 	      /*Argument not read*/
 	      printf("Error: Invalid message");
-	      exit(1);
-	    }
-	    if (char_read != strlen(buffer)) {
-	      printf("Error: Not every character was read");
 	      exit(1);
 	    }
 			return IN_RS;
@@ -202,7 +194,7 @@ void request_service(int *service, int fd_udp, int *fd_udp_serv, struct sockaddr
 		printf("Error: Invalid message");
 		exit(1);
 	}
-	if (char_read != strlen(msg_data)) {
+	if (char_read != strlen(msg_in)) {
 		printf("Error: Not every character was read");
 		exit(1);
 	}

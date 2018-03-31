@@ -510,24 +510,44 @@ void token_new_start(struct fellow *fellow) {
 /*****STEP 2 END*****/
 
 /*****STEP 3 BEGIN: manage availability*****/
-void become_unavailable() {
+void become_unavailable( struct fellow *fellow) {
+
   /* if (is not dispatch)  ?????? */
   /* if (is not available) ?????? */
   /*  */
+  if ( fellow->dispatch != 1 || fellow->available != 1 ) {
+    printf("Error: Not dispatching or available");
+    exit(1);
+  }
 
   /* withdraw_ds from cs */
+  withdraw_cs("WITHDRAW_DS", fellow);
 
   /* if (there is no next) */ /* this is the only fellow */
     /* declare the ring recv_unavailable */
-
-
-  /* else */
-    /* creates and sends S token to next */
-
+  if( fellow->id == -1 ) {
+    fellow->ring_unavailable = 1;
+  } else {
+    /* else */
+      /* creates and sends S token to next */
+    send_token("S", fellow, fellow->id, 0, 0, 0);
+  }
 }
 
-void token_search() {
+/* What happens when receiving a S token*/
+void token_search(struct fellow *fellow, int id_sender) {
+  /* Check it it is the original sender */
+  if ( fellow->id == id_sender) {
+    fellow->ring_unavailable = 1;
 
+  /* Check if it is available for dispatch */
+  } else if ( fellow->available == 1) {
+    set_cs("SET_DS", fellow);
+    send_token("T", fellow, id_sender, 0, 0, 0);
+  } else {
+    /* Send token S again */
+    send_token("S", fellow, id_sender, 0, 0, 0);
+  }
 }
 
 void token_transfer() {
