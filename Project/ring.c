@@ -540,6 +540,8 @@ void token_search(struct fellow *fellow, int id_sender) {
   if ( fellow->id == id_sender) {
     fellow->ring_unavailable = 1;
 
+    /* TODO: não te esqueças de comunicar ao anel a indisponibilidade (TOKEN I, acho)*/
+
   /* Check if it is available for dispatch */
   } else if ( fellow->available == 1) {
     set_cs("SET_DS", fellow);
@@ -558,9 +560,6 @@ void become_available() {
 
 }
 
-void get_state() {
-
-}
 /*****STEP 3 END*****/
 
 void regist_on_central(struct fellow *fellow) {
