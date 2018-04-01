@@ -34,6 +34,7 @@ struct fellow {
   /* state */
   int start, available, ring_unavailable, dispatch;
   int nw_arrival_flag; /* a new fellow is connecting */
+  int nw_available_flag /* a fellow is available when the ring is unavailable */
   int prev_flag; /* there is a previous */
 
   /* service */

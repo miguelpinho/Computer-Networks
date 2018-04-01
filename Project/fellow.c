@@ -16,6 +16,7 @@ void new_fellow(struct fellow *this) {
   this->dispatch = -1;
   this->prev_flag = 0;
   this->nw_arrival_flag = 0;
+  this->nw_available_flag = 0;
 
   this->service = -1;
 
