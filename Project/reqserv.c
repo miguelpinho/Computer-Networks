@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/time.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -10,6 +12,8 @@
 #define MAX_STR 50
 #define DEFAULT_HOST "tejo.tecnico.ulisboa.pt"
 #define DEFAULT_PORT 59000
+#define max(A,B) ((A)>=(B)?(A):(B))
+
 enum input_type {IN_ERROR, IN_RS, IN_TS, IN_EXIT, IN_NO_RS, IN_NO_TS};
 
 void get_arguments(int argc, const char *argv[], char *csip, int *cspt);
@@ -19,10 +23,12 @@ void terminate_service(int fd_udp_serv, struct sockaddr_in addr_service, socklen
 
 int main(int argc, char const *argv[])
 {
-	int fd_udp, fd_udp_serv, cspt, service = -1, id, upt, exit_f = 0, sel_in;
+	int fd_udp, fd_udp_serv, cspt, service = -1, id, upt, exit_f = 0, sel_in, max_fd = 0;
 	socklen_t addrlen;
 	struct sockaddr_in addr_central, addr_service;
 	char csip[MAX_STR], ip[MAX_STR];
+	fd_set rfds;
+	int counter;
 
   get_arguments(argc, argv, csip, &cspt);
 
@@ -33,40 +39,71 @@ int main(int argc, char const *argv[])
     exit(1); /*error*/
   }
 
+	fd_udp_serv = socket(AF_INET, SOCK_DGRAM, 0);
+	if (fd_udp_serv == -1) {
+		printf("Error: socket");
+		exit(1); /*error*/
+	}
+
 	memset((void*) &addr_central, (int) '\0', sizeof(addr_central));
 	addr_central.sin_family = AF_INET;
 	addr_central.sin_addr.s_addr = inet_addr(csip);
 	addr_central.sin_port = htons(cspt);
 
 	while(exit_f == 0){
-		sel_in = parse_user_input(&service);
+		/* Prepare select, to monitor stdin and the sockets */
+		FD_ZERO(&rfds);
+		FD_SET(0, &rfds);
+		FD_SET(fd_udp_serv, &rfds); max_fd = fd_udp_serv;
+		FD_SET(fd_udp, &rfds); max_fd = max(max_fd, fd_udp);
 
-		switch(sel_in){
-			case IN_RS:
-				request_service(&service, fd_udp, &fd_udp_serv, addr_central, &addr_service, &addrlen, &id, ip, &upt);
-				break;
-			case IN_TS:
-				terminate_service(fd_udp_serv, addr_service, &addrlen);
-				break;
-			case IN_EXIT:
-				exit_f = 1;
-				if (service != -1) {
+		counter = select(max_fd+1, &rfds, (fd_set*) NULL, (fd_set*) NULL, (struct timeval *) NULL);
+		if (counter <= 0) {
+      printf("Error: select\n");
+
+      exit(1); /*error*/
+    }
+
+		if (FD_ISSET(fd_udp, &rfds)) {
+      /* TODO: ignorar mensagem fora de tempo */
+
+    }
+
+		if (FD_ISSET(0, &rfds)) {
+
+			sel_in = parse_user_input(&service);
+
+			switch(sel_in){
+				case IN_RS:
+					request_service(&service, fd_udp, &fd_udp_serv, addr_central, &addr_service, &addrlen, &id, ip, &upt);
+					break;
+				case IN_TS:
 					terminate_service(fd_udp_serv, addr_service, &addrlen);
+					break;
+				case IN_EXIT:
+					exit_f = 1;
+					if (service != -1) {
+						terminate_service(fd_udp_serv, addr_service, &addrlen);
+					}
+					break;
+				case IN_ERROR:
+					printf("Error: Client interface\n");
+					exit(1);
+					break;
+				case IN_NO_RS:
+					printf("One service is already running\n");
+					break;
+				case IN_NO_TS:
+					printf("No service is running\n");
+					break;
 				}
-				break;
-			case IN_ERROR:
-				printf("Error: Client interface\n");
-				exit(1);
-				break;
-			case IN_NO_RS:
-				printf("One service is already running\n");
-				break;
-			case IN_NO_TS:
-				printf("No service is running\n");
-				break;
 			}
+		if(FD_ISSET(fd_udp_serv, &rfds)) {
+			/* No idea what to do here */
 
+		}
 	}
+
 	close(fd_udp);
 	close(fd_udp_serv);
 	return 0;
@@ -229,12 +266,6 @@ void request_service(int *service, int fd_udp, int *fd_udp_serv, struct sockaddr
 			sscanf(aux[1], "%d", upt);*/
 
       printf("dummy req: %d;%s;%d\n", *id, ip, *upt);
-
-      *fd_udp_serv = socket(AF_INET, SOCK_DGRAM, 0);
-    	if (*fd_udp_serv == -1) {
-        printf("Error: socket");
-        exit(1); /*error*/
-      }
 
       memset((void*) addr_service, (int) '\0', sizeof(*addr_service));
     	addr_service->sin_family = AF_INET;

@@ -34,6 +34,13 @@ void token_new(struct fellow *fellow, int id_start, int id_new, char *ip_new, in
 void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, int tpt_next);
 int exit_ring(struct fellow *fellow);
 void token_new_start( struct fellow *fellow);
+void become_unavailable( struct fellow *fellow);
+void token_search(struct fellow *fellow, int id_sender);
+void token_transfer( struct fellow *fellow, int id_sender);
+void token_unavailable( struct fellow *fellow, int id_sender);
+void become_available( struct fellow *fellow);
+void token_available( struct fellow *fellow, int id_sender);
+
 
 void regist_on_central(struct fellow *fellow);
 

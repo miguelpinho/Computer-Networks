@@ -309,7 +309,7 @@ void serve_client(struct fellow *fellow) {
   if (nread==-1) {
     exit(1); /*error*/
   }
-
+  printf("CLIENT: Entered in serving\n");
   msg_in[nread] = '\0';
   printf("%s\n", msg_in);
 
@@ -325,6 +325,7 @@ void serve_client(struct fellow *fellow) {
   }
 
   if (strcmp(toggle, "ON") == 0){
+    become_unavailable(fellow);
     sprintf(msg_out, "YOUR_SERVICE ON");
     ret = sendto( fellow->fd_service, msg_out, strlen(msg_out), 0,
                   (struct sockaddr*) &(addr_client), addrlen );
@@ -334,6 +335,7 @@ void serve_client(struct fellow *fellow) {
 
     /* FIXME: rework this all */
   } else if (strcmp(toggle, "OFF") == 0) {
+    become_available(fellow);
     sprintf(msg_out, "YOUR_SERVICE OFF");
     ret = sendto( fellow->fd_service, msg_out, strlen(msg_out), 0,
                   (struct sockaddr*) &(addr_client), addrlen );

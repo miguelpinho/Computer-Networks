@@ -528,6 +528,7 @@ void become_unavailable( struct fellow *fellow) {
 
   /* withdraw_ds from cs */
   withdraw_cs("WITHDRAW_DS", fellow);
+  fellow->dispatch = 0;
 
   /* if (there is no next) */ /* this is the only fellow */
     /* declare the ring recv_unavailable */
@@ -536,50 +537,55 @@ void become_unavailable( struct fellow *fellow) {
   } else {
     /* else */
       /* creates and sends S token to next */
-    send_token("S", fellow, fellow->id, 0, 0, 0);
+    send_token('S', fellow, fellow->id, 0, 0, 0);
   }
 }
 
 /* What happens when receiving a S token*/
 void token_search(struct fellow *fellow, int id_sender) {
+  fellow->nw_available_flag = 0;
+
   /* Check it it is the original sender */
   if ( fellow->id == id_sender) {
     fellow->ring_unavailable = 1;
 
     /* Send token I, informing other servers that the ring is unavailable */
-    send_token("I", fellow, fellow->id, 0, 0, 0);
+    send_token('I', fellow, fellow->id, 0, 0, 0);
 
   /* Check if it is available for dispatch */
   } else if ( fellow->available == 1) {
     set_cs("SET_DS", fellow);
-    send_token("T", fellow, id_sender, 0, 0, 0);
+    fellow->dispatch = 1;
+    send_token('T', fellow, id_sender, 0, 0, 0);
   } else {
     /* Send token S again */
-    send_token("S", fellow, id_sender, 0, 0, 0);
+    send_token('S', fellow, id_sender, 0, 0, 0);
   }
 }
 
 /* What happens when receiving a token T */
 void token_transfer( struct fellow *fellow, int id_sender) {
+  fellow->nw_available_flag = 0;
 
 /* Check if it arrived the sender of the token S */
   if ( fellow->id != id_sender) {
 
     /* Send token T to the next*/
-    send_token("T", fellow, id_sender, 0, 0, 0);
+    send_token('T', fellow, id_sender, 0, 0, 0);
 
   }
 }
 
 /* What happens when receiving a token I */
 void token_unavailable( struct fellow *fellow, int id_sender) {
+  fellow->nw_available_flag = 0;
 
 /* Check if it arrived the sender of the token S */
   if ( fellow->id != id_sender) {
 
     fellow->ring_unavailable = 1;
     /* Send token T to the next*/
-    send_token("I", fellow, id_sender, 0, 0, 0);
+    send_token('I', fellow, id_sender, 0, 0, 0);
   }
 }
 
@@ -592,13 +598,15 @@ void become_available( struct fellow *fellow) {
     if( fellow->next.id == -1 ) {
       /* Server alone in the ring */
       fellow->ring_unavailable = 0;
+      fellow->dispatch = 1;
       set_cs("SET_DS", fellow);
     } else {
       /* Turn on the flag responsible for becoming available */
       fellow->nw_available_flag = 1;
+      fellow->ring_unavailable = 0;
 
       /* Inform the other servers that this one is ready for dispatch */
-      send_token("D", fellow, fellow->id);
+      send_token('D', fellow, fellow->id, 0, 0, 0);
     }
   }
 }
@@ -606,13 +614,14 @@ void become_available( struct fellow *fellow) {
 /* What happens when you receive a token D */
 void token_available( struct fellow *fellow, int id_sender) {
   /* Arrives the sender */
-  if (fellow_>id == id_sender) {
+  if (fellow->id == id_sender) {
     fellow->ring_unavailable = 0;
     fellow->nw_available_flag = 0;
     set_cs("SET_DS", fellow);
-  } else  if (fellow_>nw_available_flag == 0 || id_sender < fellow->id) {
-    /* If 2 or more suddenly became available, just passes the token D if the id is minor than his own */
-      send_token("D", fellow, id_sender);
+  } else if ((fellow->nw_available_flag == 0 || id_sender < fellow->id) && fellow->dispatch == 0) {
+      /* If 2 or more suddenly became available, just passes the token D if the id is minor than his own */
+      fellow->nw_available_flag = 0;
+      send_token('D', fellow, id_sender, 0, 0, 0);
   }
 }
 
