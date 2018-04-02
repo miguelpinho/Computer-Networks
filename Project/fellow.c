@@ -137,7 +137,7 @@ void register_cs(char *reply, struct fellow *fellow) {
   strcpy(reply, msg_in);
 }
 
-void set_cs(char *query, struct fellow *fellow) {
+void set_cs(char *query, struct fellow *fellow, int pt) {
   char msg_out[MAX_STR], msg_in[MAX_STR];
   int nsend, nrecv;
   struct sockaddr_in addr_central;
@@ -150,7 +150,7 @@ void set_cs(char *query, struct fellow *fellow) {
 	addr_central.sin_port = htons(fellow->cspt);
 
   sprintf( msg_out, "%s %d;%d;%s;%d", query, fellow->service, fellow->id,
-           fellow->ip, fellow->tpt );
+           fellow->ip, pt );
   nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
                   (struct sockaddr*) &(addr_central),
                   sizeof(addr_central) );

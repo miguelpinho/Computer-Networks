@@ -509,7 +509,7 @@ void token_new_start(struct fellow *fellow) {
   char msg_out[MAX_STR], msg_in[MAX_STR];
   socklen_t addrlen;
 
-  set_cs("SET_START", fellow);
+  set_cs("SET_START", fellow, fellow->tpt);
 
   fellow->start = 1;
 }
@@ -545,7 +545,7 @@ void become_unavailable( struct fellow *fellow) {
 void token_search(struct fellow *fellow, int id_sender) {
   fellow->nw_available_flag = 0;
 
-  /* Check it it is the original sender */
+  /* Check if it is the original sender */
   if ( fellow->id == id_sender) {
     fellow->ring_unavailable = 1;
 
@@ -554,7 +554,7 @@ void token_search(struct fellow *fellow, int id_sender) {
 
   /* Check if it is available for dispatch */
   } else if ( fellow->available == 1) {
-    set_cs("SET_DS", fellow);
+    set_cs("SET_DS", fellow, fellow->upt);
     fellow->dispatch = 1;
     send_token('T', fellow, id_sender, 0, 0, 0);
   } else {
@@ -599,7 +599,7 @@ void become_available( struct fellow *fellow) {
       /* Server alone in the ring */
       fellow->ring_unavailable = 0;
       fellow->dispatch = 1;
-      set_cs("SET_DS", fellow);
+      set_cs("SET_DS", fellow, fellow->upt);
     } else {
       /* Turn on the flag responsible for becoming available */
       fellow->nw_available_flag = 1;
@@ -617,7 +617,7 @@ void token_available( struct fellow *fellow, int id_sender) {
   if (fellow->id == id_sender) {
     fellow->ring_unavailable = 0;
     fellow->nw_available_flag = 0;
-    set_cs("SET_DS", fellow);
+    set_cs("SET_DS", fellow, fellow->upt);
   } else if ((fellow->nw_available_flag == 0 || id_sender < fellow->id) && fellow->dispatch == 0) {
       /* If 2 or more suddenly became available, just passes the token D if the id is minor than his own */
       fellow->nw_available_flag = 0;
@@ -653,12 +653,12 @@ void regist_on_central(struct fellow *fellow) {
     sprintf(test_data, "%d;0;0.0.0.0;0", fellow->id);
     if (strcmp(msg_data, test_data) == 0) {
       /* This is the start server. */
-      set_cs("SET_START", fellow);
+      set_cs("SET_START", fellow, fellow->tpt);
 
       fellow->start = 1;
 
       /* Also set the server to dispatch */
-      set_cs("SET_DS", fellow);
+      set_cs("SET_DS", fellow, fellow->upt);
 
       fellow->dispatch = 1;
       fellow->available = 1;
