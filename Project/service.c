@@ -133,7 +133,7 @@ int main(int argc, char const *argv[]) {
 
     if (FD_ISSET(fellow.fd_service, &rfds)) {
       /* Respond to a client request. */
-
+      printf("CLIENT: Detected communication with client\n");
       serve_client(&fellow);
     }
 
