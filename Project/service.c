@@ -32,7 +32,6 @@ int main(int argc, char const *argv[]) {
   socklen_t addrlen = sizeof(addr_acpt);
 
   buffer[0] = '\0';
-
   new_fellow(&fellow);
 
   get_arguments(argc, argv, &(fellow.id), fellow.ip, &(fellow.upt),
@@ -309,9 +308,8 @@ void serve_client(struct fellow *fellow) {
   if (nread==-1) {
     exit(1); /*error*/
   }
-  printf("CLIENT: Entered in serving\n");
+
   msg_in[nread] = '\0';
-  printf("%s\n", msg_in);
 
   arg_read = sscanf(msg_in, "MY_SERVICE %s%n", toggle, &char_read);
   if (arg_read != 1) {

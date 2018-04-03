@@ -220,7 +220,6 @@ void request_service(int *service, int fd_udp, int fd_udp_serv, struct sockaddr_
 	nrecv = recvfrom(fd_udp, msg_in, 128, 0, (struct sockaddr*) &addr_central, addrlen);
 	if( nrecv == -1 ) {
     printf("Error: recv");
-    exit(1); /*error*/
   }
   msg_in[nrecv] = '\0';
   printf("%s\n", msg_in);
@@ -236,7 +235,6 @@ void request_service(int *service, int fd_udp, int fd_udp_serv, struct sockaddr_
 		exit(1);
 	}
 
-  printf("dummy scan: %s\n", msg_data);
   if (strcmp(msg_type, "OK") != 0) {
     printf("Erro: msg\n");
   } else {
@@ -253,19 +251,6 @@ void request_service(int *service, int fd_udp, int fd_udp_serv, struct sockaddr_
 	      printf("Error: Not every character was read");
 	      exit(1);
 	    }
-
-			/*split = strtok(msg_data, ";");
-			while (split != NULL)
-			{
-		    strcpy(aux[i], split);
-		    split = strtok (NULL, ";");
-				i++;
-		  }
-
-			strcpy(ip, aux[0]);
-			sscanf(aux[1], "%d", upt);*/
-
-      printf("dummy req: %d;%s;%d\n", *id, ip, *upt);
 
       memset((void*) addr_service, (int) '\0', sizeof(*addr_service));
     	addr_service->sin_family = AF_INET;

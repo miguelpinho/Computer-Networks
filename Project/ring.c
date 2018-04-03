@@ -89,7 +89,7 @@ void send_new_start(struct fellow *fellow) {
 }
 
 int read_stream(struct fellow *fellow, char buffer[MAX_STR]) {
-  int n, total = 0;
+  int n;
   char msg_in[MAX_STR], tmp[MAX_STR], msg_parse[MAX_STR], *ch, *cur;
 
   strcpy(tmp, buffer);
@@ -145,7 +145,7 @@ int read_stream(struct fellow *fellow, char buffer[MAX_STR]) {
 
 int process_message (char *msg, struct fellow *fellow) {
 
-  char msg_data[MAX_STR], msg_type[MAX_STR], token_type, ip[MAX_STR];
+  char msg_type[MAX_STR], token_type, ip[MAX_STR];
   int id, tpt, id2, arg_read, char_read;
 
   printf("TCP_MSG: \"%s\"\n", msg);
@@ -163,15 +163,16 @@ int process_message (char *msg, struct fellow *fellow) {
       goto error_msg;
     }
 
-    printf("%c\n", token_type);
-
     switch (token_type) {
       case 'S':
         token_search(fellow, id);
+        break;
       case 'T':
         token_transfer(fellow, id);
+        break;
       case 'I':
         token_unavailable(fellow, id);
+        break;
       case 'D':
         token_available(fellow, id);
         break;
@@ -213,7 +214,6 @@ int process_message (char *msg, struct fellow *fellow) {
     goto error_msg;
   }
 
-  printf("%d %s %d %d\n", id, ip, id2, tpt);
   return 1;
 
 error_msg:
@@ -254,7 +254,6 @@ int message_nw_arrival (char *msg, struct fellow *fellow) {
     goto error_msg;
   }
 
-  printf("%d %s %d \n", id, ip, tpt);
   return 1;
 
 error_msg:
@@ -348,6 +347,9 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
     /* There are more fellows in the ring. Pass token to warn tail. */
     send_token('N', fellow, fellow->id, id_new, ip_new, tpt_new);
 
+    if (fellow->ring_unavailable == 1) {
+      send_token('I', fellow, fellow->id, 0, 0, 0);
+    }
     /* TODO: Do not wait for desconnection from tail */
   }
 
@@ -402,7 +404,11 @@ void token_new(struct fellow *fellow, int id_start, int id_new, char *ip_new, in
 int exit_ring(struct fellow *fellow) {
 
   /* Manage availability inheritance. */
-  /* TODO */
+  if (fellow->dispatch == 1) {
+    become_unavailable(fellow);
+  }
+  /* To leave it can't be available for receiving new service requests */
+  fellow->available = 0;
 
   /* Manage start inheritance. */
   if (fellow->start == 1) {
@@ -505,9 +511,6 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
 
 /*When a server receives the new start token*/
 void token_new_start(struct fellow *fellow) {
-  int nsend, nrecv;
-  char msg_out[MAX_STR], msg_in[MAX_STR];
-  socklen_t addrlen;
 
   set_cs("SET_START", fellow, fellow->tpt);
 
@@ -529,6 +532,7 @@ void become_unavailable( struct fellow *fellow) {
   /* withdraw_ds from cs */
   withdraw_cs("WITHDRAW_DS", fellow);
   fellow->dispatch = 0;
+  fellow->available = 0;
 
   /* if (there is no next) */ /* this is the only fellow */
     /* declare the ring recv_unavailable */
@@ -580,13 +584,23 @@ void token_transfer( struct fellow *fellow, int id_sender) {
 void token_unavailable( struct fellow *fellow, int id_sender) {
   fellow->nw_available_flag = 0;
 
-/* Check if it arrived the sender of the token S */
-  if ( fellow->id != id_sender) {
+  /* The case of the recently entered address */
+  if ( fellow->available == 1) {
 
     fellow->ring_unavailable = 1;
-    /* Send token T to the next*/
     send_token('I', fellow, id_sender, 0, 0, 0);
+    become_available(fellow);
+
+    /* Check if it arrived the sender of the token S */
+  } else if ( fellow->id != id_sender) {
+
+    fellow->ring_unavailable = 1;
+    /* Send token I to the next*/
+    send_token('I', fellow, id_sender, 0, 0, 0);
+
   }
+
+
 }
 
 /* A server becomes available */
@@ -613,10 +627,12 @@ void become_available( struct fellow *fellow) {
 
 /* What happens when you receive a token D */
 void token_available( struct fellow *fellow, int id_sender) {
+
   /* Arrives the sender */
   if (fellow->id == id_sender) {
     fellow->ring_unavailable = 0;
     fellow->nw_available_flag = 0;
+    fellow->dispatch = 1;
     set_cs("SET_DS", fellow, fellow->upt);
   } else if ((fellow->nw_available_flag == 0 || id_sender < fellow->id) && fellow->dispatch == 0) {
       /* If 2 or more suddenly became available, just passes the token D if the id is minor than his own */
