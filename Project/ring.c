@@ -376,7 +376,7 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
 
 /* Receives token new */
 void token_new(struct fellow *fellow, int id_start, int id_new, char *ip_new, int tpt_new) {
-  /*int fd_destroy; // Tmp, for connection to start to delete */
+  
   int n;
   struct sockaddr_in addr_new;
 
@@ -397,7 +397,7 @@ void token_new(struct fellow *fellow, int id_start, int id_new, char *ip_new, in
   	if(fellow->next.fd_next == -1) {
       destroy_fellow(fellow);
       perror("Error: Creating socket\nDescription:");
-      exit(1);/* error */
+      exit(1); /* error */
     }
 
     addr_new.sin_family = AF_INET;
