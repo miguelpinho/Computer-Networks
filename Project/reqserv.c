@@ -30,6 +30,10 @@ int main(int argc, char const *argv[])
 	fd_set rfds;
 	int counter;
 
+	struct timeval timeout;
+  timeout.tv_sec = 10;
+  timeout.tv_usec = 0;
+
   get_arguments(argc, argv, csip, &cspt);
 
 	/* ... */
@@ -39,10 +43,22 @@ int main(int argc, char const *argv[])
     exit(1); /*error*/
   }
 
+	if (setsockopt ( fd_udp, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
+									 sizeof(timeout)) < 0 ) {
+		perror("Error: timeout central socket\nDescription:");
+		exit(1); /* error */
+	}
+
 	fd_udp_serv = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd_udp_serv == -1) {
 		printf("Error: socket");
 		exit(1); /*error*/
+	}
+
+	if (setsockopt ( fd_udp_serv, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
+									 sizeof(timeout)) < 0 ) {
+		perror("Error: timeout central socket\nDescription:");
+		exit(1); /* error */
 	}
 
 	memset((void*) &addr_central, (int) '\0', sizeof(addr_central));
