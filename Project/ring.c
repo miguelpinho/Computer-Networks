@@ -516,6 +516,8 @@ void token_new_start(struct fellow *fellow) {
 
   fellow->start = 1;
 }
+
+
 /*****STEP 2 END*****/
 
 /*****STEP 3 BEGIN: manage availability*****/
