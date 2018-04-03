@@ -36,6 +36,8 @@ void send_token(char token_type, struct fellow *fellow, int id, int id2, char *i
 	while(nleft > 0) {
 		nwritten = write(fellow->next.fd_next, ptr, nleft);
 		if (nwritten <= 0) {
+      destroy_fellow(fellow);
+      perror("Error: Invalid write sending token\nDescription: ");
       exit(1); /* error */
     }
 
@@ -58,6 +60,8 @@ void send_new(struct fellow *fellow) {
 	while(nleft > 0) {
 		nwritten = write(fellow->next.fd_next, ptr, nleft);
 		if (nwritten <= 0) {
+      destroy_fellow(fellow);
+      perror("Error: Invalid write sending NEW\nDescription:");
       exit(1); /* error */
     }
 
@@ -67,8 +71,8 @@ void send_new(struct fellow *fellow) {
 }
 
 void send_new_start(struct fellow *fellow) {
-  int nleft, nwritten;
   char msg_out[MAX_STR], *ptr;
+  int nwritten, nleft;
 
   sprintf(msg_out, "NEW_START\n");
 
@@ -80,6 +84,8 @@ void send_new_start(struct fellow *fellow) {
 	while(nleft > 0) {
 		nwritten = write(fellow->next.fd_next, ptr, nleft);
 		if (nwritten <= 0) {
+      destroy_fellow(fellow);
+      perror("Error: Invalid write sending NEW_START\nDescription:");
       exit(1); /* error */
     }
 
@@ -97,7 +103,7 @@ int read_stream(struct fellow *fellow) {
   n = read(fellow->fd_prev, msg_in, MAX_STR);
 
   if (n == -1) {
-    printf("Error: read TCP");
+    perror("Error: read TCP\nDescription: ");
     exit(1); /* error */
   } else if (n == 0) {
     /* The previous disconnected */
@@ -119,8 +125,9 @@ int read_stream(struct fellow *fellow) {
       /* Parse the message. */
 
       if (process_message(msg_parse, fellow) == 0) {
-        /* TODO: Error on tcp message protocol. */
-
+        /* Error on tcp message protocol. */
+        destroy_fellow(fellow);
+        printf("Error: Error on TCP message protocol");
         return -1;
 
       }
@@ -130,7 +137,8 @@ int read_stream(struct fellow *fellow) {
 
       if (message_nw_arrival(msg_parse, fellow) == 0) {
         /* TODO: Error on tcp msg_parse protocol. */
-
+        destroy_fellow(fellow);
+        printf("Error: Error on TCP message protocol");
         return -1;
       }
     }
@@ -275,6 +283,8 @@ void join_ring(struct fellow *fellow , int tpt_start , char *ip_start, int id_st
 
   fellow->next.fd_next = socket(AF_INET,SOCK_STREAM,0);
 	if(fellow->next.fd_next==-1) {
+    destroy_fellow(fellow);
+    perror("Error: Creating socket\nDescription:");
     exit(1); /* error */
   }
 
@@ -286,6 +296,8 @@ void join_ring(struct fellow *fellow , int tpt_start , char *ip_start, int id_st
 
   n = connect(fellow->next.fd_next, (struct sockaddr*) &addr_next, sizeof(addr_next));
 	if (n == -1) {
+    destroy_fellow(fellow);
+    perror("Error: TCP Connect\nDescription:");
     exit(1); /* error */
   }
 
@@ -299,7 +311,8 @@ void join_ring(struct fellow *fellow , int tpt_start , char *ip_start, int id_st
   /* wait for connection */
   addrlen = sizeof(addr);
   if ((fellow->fd_prev = accept(fellow->fd_listen, (struct sockaddr*) &addr, &addrlen)) == -1) {
-    printf("Error: TCP connect\n");
+    destroy_fellow(fellow);
+    perror("Error: TCP accecpt\nDescription:");
     exit(1); /* error */
   }
 
@@ -307,9 +320,6 @@ void join_ring(struct fellow *fellow , int tpt_start , char *ip_start, int id_st
   fellow->in_buffer[0] = '\0';
 
   printf("PROTOCOL: accepted connection\n");
-
-  /* how does it communicate it is available??? send D anyway? */
-  /* FIXME: ask Saruman */
 }
 
 void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_new, int id_start) {
@@ -326,7 +336,8 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
 
     fellow->next.fd_next = socket(AF_INET,SOCK_STREAM,0);
   	if(fellow->next.fd_next==-1) {
-      printf("Error: socket creation");
+      destroy_fellow(fellow);
+      perror("Error: Creating socket\nDescription:");
       exit(1);/* error */
     }
 
@@ -338,7 +349,8 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
 
     n = connect(fellow->next.fd_next, (struct sockaddr*) &addr_new, sizeof(addr_new));
     if (n==-1) {
-      printf("Error: failed to connect to NEW\n");
+      destroy_fellow(fellow);
+      perror("Error: failed to connect to NEW\nDescription: ");
       exit(1); /* error */
     }
 
@@ -379,7 +391,8 @@ void token_new(struct fellow *fellow, int id_start, int id_new, char *ip_new, in
 
     fellow->next.fd_next = socket(AF_INET, SOCK_STREAM, 0);
   	if(fellow->next.fd_next == -1) {
-      printf("Error: socket creation\n");
+      destroy_fellow(fellow);
+      perror("Error: Creating socket\nDescription:");
       exit(1);/* error */
     }
 
@@ -389,7 +402,8 @@ void token_new(struct fellow *fellow, int id_start, int id_new, char *ip_new, in
 
     n = connect(fellow->next.fd_next, (struct sockaddr*) &addr_new, sizeof(addr_new));
   	if (n == -1) {
-      printf("Error: connect\n");
+      destroy_fellow(fellow);
+      perror("Error: TCP connect\nDescription:");
       exit(1); /* error */
     }
 
@@ -515,6 +529,8 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
 
       fellow->next.fd_next = socket(AF_INET, SOCK_STREAM, 0);
     	if (fellow->next.fd_next == -1) {
+        destroy_fellow(fellow);
+        perror("Error: Creating socket\nDescription:");
         exit(1);/* error */
       }
 
@@ -525,7 +541,8 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
       addrlen = sizeof(addr);
       n = connect(fellow->next.fd_next, (struct sockaddr*) &addr, sizeof(addr));
     	if (n == -1) {
-        printf("Error: TCP connect in exit protocol\n");
+        destroy_fellow(fellow);
+        perror("Error: TCP connect\nDescription:");
         exit(1); /* error */
       }
 
@@ -547,7 +564,8 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
       addrlen = sizeof(addrlen);
       if ( (fellow->fd_prev = accept( fellow->fd_listen,
            (struct sockaddr*) &addr, &addrlen) ) == -1 ) {
-        printf("Error: TCP accept in exit protocol\n");
+        destroy_fellow(fellow);
+        perror("Error: Creating socket\nDescription:");
         exit(1); /* error */
       }
 
@@ -573,6 +591,7 @@ void become_unavailable( struct fellow *fellow) {
   /* if (is not available) ?????? */
   /*  */
   if ( fellow->dispatch != 1 || fellow->available != 1 ) {
+    destroy_fellow(fellow);
     printf("Error: Not dispatching or available");
     exit(1);
   }
@@ -710,17 +729,20 @@ void regist_on_central(struct fellow *fellow) {
   arg_read = sscanf(msg, "%s %s%n", msg_type, msg_data, &char_read);
   if (arg_read != 2) {
     /*Argument not read*/
+    destroy_fellow(fellow);
     printf("Error: Invalid message: \"%s\"", msg);
     exit(1);
   }
   if (char_read != strlen(msg)) {
+    destroy_fellow(fellow);
     printf("Error: Invalid message: \"%s\"", msg);
     exit(1);
   }
 
   if (strcmp(msg_type, "OK") != 0) {
+    destroy_fellow(fellow);
     printf("Error: Invalid message: \"%s\"", msg);
-    /* TODO */
+    exit(1);
   } else {
     sprintf(test_data, "%d;0;0.0.0.0;0", fellow->id);
     if (strcmp(msg_data, test_data) == 0) {
@@ -740,11 +762,13 @@ void regist_on_central(struct fellow *fellow) {
       arg_read = sscanf(msg_data, "%*d;%d;%[^; ];%d%n", &id_start, ip_start, &tpt_start, &char_read);
       if (arg_read != 3) {
 	      /*Argument not read*/
+        destroy_fellow(fellow);
 	      printf("Error: Invalid message");
 	      exit(1);
 	    }
 	    if (char_read != strlen(msg_data)) {
-	      printf("Error: Not every character was read");
+        destroy_fellow(fellow);
+        printf("Error: Not every character was read");
 	      exit(1);
 	    }
 

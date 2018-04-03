@@ -20,6 +20,7 @@
 #include <string.h>
 
 #define MAX_STR 128
+#define MAX_IP 20
 
 enum exit_type {NO_EXIT, TRIG_EXIT, DONE_EXIT};
 
@@ -52,7 +53,7 @@ struct fellow {
 
   /* address */
   int id, upt, tpt, cspt;
-  char ip[MAX_STR], csip[MAX_STR];
+  char ip[MAX_IP], csip[MAX_IP];
 
   /* in buffer */
   char in_buffer[MAX_STR];
