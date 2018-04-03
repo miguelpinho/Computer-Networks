@@ -137,9 +137,19 @@ int main(int argc, char const *argv[]) {
 
     if (FD_ISSET(fellow.fd_listen, &rfds)) {
       /* A fellow is trying to connect to this one. */
-      if (!fellow.start) {
+
+      if (fellow.wait_connect == 1) {
+        /* Connection remake in exit protocol. */
+
+        fellow.wait_connect = 0;
+      } else if (fellow.start == 1) {
+        /* New fellow. */
+
+        fellow.nw_arrival_flag = 1;
+      } else {
         /* Out of time connection. Only makes sense if this is start? */
-        printf("Error: TCP accepted by a non-start server");
+
+        printf("Error: TCP accept out of time");
         destroy_fellow(&fellow);
         exit(1);
       }
@@ -154,7 +164,7 @@ int main(int argc, char const *argv[]) {
       }
 
       /* Accept new fellow. */
-      printf("PROTOCOL: will accept NEW\n");
+      printf("PROTOCOL: will accept connection\n");
       addrlen = sizeof(addr_acpt);
 
       if ( (fellow.fd_prev = accept( fellow.fd_listen,
@@ -167,11 +177,9 @@ int main(int argc, char const *argv[]) {
       /* Mark it as listining to a new fellow and clean input buffer. */
       fellow.prev_flag = 1;
       fellow.in_buffer[0] = '\0';
-
-      fellow.nw_arrival_flag = 1;
     }
 
-    /* Check if internal state has changed */
+    /* Check if exit state has changed */
     if (fellow.exiting == DONE_EXIT) {
 
       if (exit_delay == 1) {
@@ -232,7 +240,7 @@ void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, in
         exit(1);
     }
   }
-  
+
   if (csi != 1) {
     if((h = gethostbyname(DEFAULT_HOST)) == NULL) {
       exit(1);
