@@ -555,23 +555,15 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
 
     }
   } else {
-                                      if (fellow->id == id_next) {
-                                        /* This is the one after the one leaving. */
-
-                                        /* Disconnect from leaving fellow */
-                                        close(fellow->fd_prev);
-                                        fellow->prev_flag = 0;
-                                      }
-
-    /* pass the O token */
-    send_token('O', fellow, id_out, id_next, ip_next, tpt_next);
 
     if (fellow->id == id_next) {
       /* Signal this is waiting for a connection from previous */
-      fellow->wait_connect = 1;
-
       
+      fellow->wait_connect = 1;
     }
+
+    /* pass the O token */
+    send_token('O', fellow, id_out, id_next, ip_next, tpt_next);
   }
 }
 
