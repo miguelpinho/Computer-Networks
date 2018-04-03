@@ -25,7 +25,7 @@ void new_fellow(struct fellow *this) {
   this->next.id = -1;
 
   /* Init in buffer */
-  this->in_buffer = '\0';
+  this->in_buffer[0] = '\0';
 }
 
 void create_sockets(struct fellow *fellow) {

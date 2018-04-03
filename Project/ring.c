@@ -129,7 +129,6 @@ int read_stream(struct fellow *fellow) {
         destroy_fellow(fellow);
         printf("Error: Error on TCP message protocol");
         return -1;
-
       }
 
     } else {
@@ -480,8 +479,10 @@ int launch_exit_ring(struct fellow *fellow) {
   }
 
   /* Disconnect from next (FIXME) */
-  close(fellow->fd_next);
+  close(fellow->next.fd_next);
   fellow->next.id = -1;
+
+  return 0;
 }
 
 /* Receives token exit */
@@ -587,9 +588,7 @@ void token_new_start(struct fellow *fellow) {
 /*****STEP 3 BEGIN: manage availability*****/
 void become_unavailable( struct fellow *fellow) {
 
-  /* if (is not dispatch)  ?????? */
-  /* if (is not available) ?????? */
-  /*  */
+  /* This does not make sense if this is not the dispatch/available */
   if ( fellow->dispatch != 1 || fellow->available != 1 ) {
     destroy_fellow(fellow);
     printf("Error: Not dispatching or available");
@@ -601,13 +600,13 @@ void become_unavailable( struct fellow *fellow) {
   fellow->dispatch = 0;
   fellow->available = 0;
 
-  /* if (there is no next) */ /* this is the only fellow */
-    /* declare the ring recv_unavailable */
   if( fellow->next.id == -1 ) {
+    /* This was the only fellow */
+
     fellow->ring_unavailable = 1;
   } else {
-    /* else */
-      /* creates and sends S token to next */
+    /* Search for a new dispatch */
+
     send_token('S', fellow, fellow->id, 0, 0, 0);
   }
 }
@@ -627,8 +626,10 @@ void token_search(struct fellow *fellow, int id_sender) {
   } else if ( fellow->available == 1) {
     set_cs("SET_DS", fellow, fellow->upt);
     fellow->dispatch = 1;
+
     send_token('T', fellow, id_sender, 0, 0, 0);
   } else {
+
     /* Send token S again */
     send_token('S', fellow, id_sender, 0, 0, 0);
   }
@@ -686,11 +687,13 @@ void become_available( struct fellow *fellow) {
 
     if( fellow->next.id == -1 ) {
       /* Server alone in the ring */
+
       fellow->ring_unavailable = 0;
       fellow->dispatch = 1;
       set_cs("SET_DS", fellow, fellow->upt);
     } else {
       /* Turn on the flag responsible for becoming available */
+      
       fellow->nw_available_flag = 1;
       fellow->ring_unavailable = 0;
 
@@ -711,6 +714,7 @@ void token_available( struct fellow *fellow, int id_sender) {
     set_cs("SET_DS", fellow, fellow->upt);
   } else if ((fellow->nw_available_flag == 0 || id_sender < fellow->id) && fellow->dispatch == 0) {
       /* If 2 or more suddenly became available, just passes the token D if the id is minor than his own */
+
       fellow->nw_available_flag = 0;
       send_token('D', fellow, id_sender, 0, 0, 0);
   }

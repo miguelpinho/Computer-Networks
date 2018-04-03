@@ -26,7 +26,6 @@ int main(int argc, char const *argv[]) {
   int sel_in, exit_f = 0, exit_delay = 0, max_fd = 0;
   int counter, ret;
   fd_set rfds;
-  char buffer[MAX_STR];
   struct fellow fellow;
   struct sockaddr addr_acpt;
   socklen_t addrlen = sizeof(addr_acpt);
@@ -107,7 +106,7 @@ int main(int argc, char const *argv[]) {
         case IN_LEAVE:
           /* Leave the service ring. */
 
-          exit_ring(&fellow);
+          trigger_exit_ring(&fellow);
           break;
         case IN_EXIT:
           exit_delay = 1;
@@ -115,7 +114,7 @@ int main(int argc, char const *argv[]) {
           if (fellow.service != -1) {
             /* Has to exit the service ring. */
 
-            exit_ring(&fellow);
+            trigger_exit_ring(&fellow);
           }
           break;
         case IN_NO_JOIN:
@@ -172,14 +171,14 @@ int main(int argc, char const *argv[]) {
     }
 
     /* Check if internal state has changed */
-    if (fellow->exiting == EXIT_DONE) {
+    if (fellow.exiting == DONE_EXIT) {
 
       if (exit_delay == 1) {
         
         exit_f = 1;
       } else {
         
-        fellow->exiting = NO_EXIT;
+        fellow.exiting = NO_EXIT;
       }
     }
   }
@@ -233,11 +232,11 @@ void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, in
     }
   }
     if (csi != 1) {
-      if((h=gethostbyname(DEFAULT_HOST))==NULL) {
+      if((h = gethostbyname(DEFAULT_HOST)) == NULL) {
         exit(1);
       }
 
-      a=(struct in_addr*) h->h_addr_list[0];
+      a = (struct in_addr*) h->h_addr_list[0];
       sprintf(csip, "%s", inet_ntoa(*a));
     }
 
@@ -294,7 +293,7 @@ int parse_user_input(int *service) {
   } else if (strcmp(cmd, "leave") == 0) {
     /* Leave the service ring. */
 
-    if(*service != -1){
+    if (*service != -1) {
       return IN_LEAVE;
     } else {
       return IN_NO_LEAVE;

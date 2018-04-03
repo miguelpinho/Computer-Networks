@@ -24,7 +24,7 @@
 void send_token(char token_type, struct fellow *fellow, int id, int id2, char *ip, int tpt);
 void send_new(struct fellow *fellow);
 void send_new_start(struct fellow *fellow);
-int read_stream(struct fellow *fellow, char msg[MAX_STR]);
+int read_stream(struct fellow *fellow);
 int process_message (char *msg, struct fellow *fellow);
 int message_nw_arrival (char *msg, struct fellow *fellow);
 
@@ -32,7 +32,8 @@ void join_ring(struct fellow *fellow , int tpt_start , char *ip_start, int id_st
 void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_new, int id_start);
 void token_new(struct fellow *fellow, int id_start, int id_new, char *ip_new, int tpt_new);
 void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, int tpt_next);
-int exit_ring(struct fellow *fellow);
+int trigger_exit_ring(struct fellow *fellow);
+int launch_exit_ring(struct fellow *fellow);
 void token_new_start( struct fellow *fellow);
 void become_unavailable( struct fellow *fellow);
 void token_search(struct fellow *fellow, int id_sender);
