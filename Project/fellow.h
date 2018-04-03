@@ -20,7 +20,7 @@
 #include <string.h>
 
 #define MAX_STR 128
-
+#define MAX_IP 20
 /* next server in the fellowship ring */
 struct next_fellow {
   int id;
@@ -49,7 +49,7 @@ struct fellow {
 
   /* address */
   int id, upt, tpt, cspt;
-  char ip[MAX_STR], csip[MAX_STR];
+  char ip[MAX_IP], csip[MAX_IP];
 };
 
 void new_fellow(struct fellow *this);

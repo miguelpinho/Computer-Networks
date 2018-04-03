@@ -32,14 +32,14 @@ void create_sockets(struct fellow *fellow) {
   /* Create socket for communication with central. */
   fellow->fd_central = socket(AF_INET, SOCK_DGRAM, 0);
 	if(fellow->fd_central == -1) {
-    printf("Error: socket central");
+    perror("Error: Creating central socket\nDescription:");
     exit(1); /*error*/
   }
 
   /* Create socket for the service to the client. */
   fellow->fd_service = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fellow->fd_service == -1) {
-    printf("Error: socket serving");
+    perror("Error: Creating serving socket\nDescription:");
     exit(1); /*error*/
   }
 
@@ -52,15 +52,14 @@ void create_sockets(struct fellow *fellow) {
   ret = bind( fellow->fd_service, (struct sockaddr*) &(addr_service),
               sizeof(addr_service) );
   if (ret == -1) {
-    printf("Error: bind service socket (upt)\n");
-
+    perror("Error: bind service socket (upt)\nDescription:");
     exit(1); /*error*/
   }
 
   /* Create listen socket */
   if ((fellow->fd_listen = socket(AF_INET,SOCK_STREAM,0)) == -1) {
-    printf("Error: socket listen");
-
+    perror("Error: Creating listen socket\nDescription:");
+    close(fellow->fd_service);
     exit(1); /* error */
   }
 
@@ -71,14 +70,15 @@ void create_sockets(struct fellow *fellow) {
   addr_fellow.sin_port = htons(fellow->tpt);
 
   if (bind(fellow->fd_listen, (struct sockaddr*) &addr_fellow, sizeof(addr_fellow)) == -1) {
-    printf("Error: bind listen socket (tpt)\n");
-
+    perror("Error: bind listen socket (tpt)\nDescription");
+    close(fellow->fd_service);
     exit(1); /* error */
   }
 
   if (listen(fellow->fd_listen, 5) == -1) {
-    printf("Error: listen\n");
-
+    perror("Error: listen\nDescription:");
+    close(fellow->fd_service);
+    close(fellow->fd_listen);
     exit(1); /* error */
   }
 }
@@ -93,10 +93,10 @@ void destroy_fellow(struct fellow *this) {
 }
 
 void show_state(struct fellow *fellow) {
-  printf("Estado do service (id = %d): \n", fellow->id);
-  printf("\teste: %s\n", (fellow->available == 1)?"disponível":"indisponível");
-  printf("\tanel: %s\n", (fellow->ring_unavailable == 0)?"disponível":"indisponível");
-  printf("\tseguinte: id = %d\n", fellow->next.id);
+  printf("Service state (id = %d): \n", fellow->id);
+  printf("\tThis: %s\n", (fellow->available == 1)?"Available":"Unavailable");
+  printf("\tRing: %s\n", (fellow->ring_unavailable == 0)?"Available":"Unavailable");
+  printf("\tNext: id = %d\n", fellow->next.id);
 }
 
 void register_cs(char *reply, struct fellow *fellow) {
@@ -118,7 +118,8 @@ void register_cs(char *reply, struct fellow *fellow) {
                   (struct sockaddr*) &(addr_central),
                   sizeof(addr_central) );
   if( nsend == -1 ) {
-    printf("Error: send");
+    destroy_fellow(fellow);
+    perror("Error: Send to central\nDescription:");
     exit(1); /*error*/
   }
 
@@ -127,7 +128,8 @@ void register_cs(char *reply, struct fellow *fellow) {
   nrecv = recvfrom( fellow->fd_central, msg_in, 128, 0,
                     (struct sockaddr*) &(addr_central), &addrlen );
   if( nrecv == -1 ) {
-    printf("Error: recv");
+    destroy_fellow(fellow);
+    perror("Error: Receive from central\nDescription:");
     exit(1); /*error*/
   }
 
@@ -138,8 +140,8 @@ void register_cs(char *reply, struct fellow *fellow) {
 }
 
 void set_cs(char *query, struct fellow *fellow, int pt) {
-  char msg_out[MAX_STR], msg_in[MAX_STR];
-  int nsend, nrecv;
+  char msg_out[MAX_STR], msg_in[MAX_STR], verifier[MAX_STR];
+  int nsend, nrecv, arg_read;
   struct sockaddr_in addr_central;
   socklen_t addrlen;
 
@@ -155,7 +157,8 @@ void set_cs(char *query, struct fellow *fellow, int pt) {
                   (struct sockaddr*) &(addr_central),
                   sizeof(addr_central) );
   if( nsend == -1 ) {
-    printf("Error: send");
+    destroy_fellow(fellow);
+    perror("Error: Send to central\nDescription:");
     exit(1); /*error*/
   }
 
@@ -164,19 +167,33 @@ void set_cs(char *query, struct fellow *fellow, int pt) {
   nrecv = recvfrom( fellow->fd_central, msg_in, 128, 0,
                     (struct sockaddr*) &(addr_central), &addrlen );
   if( nrecv == -1 ) {
-    printf("Error: recv");
+    destroy_fellow(fellow);
+    perror("Error: Receive from central\nDescription:");
     exit(1); /*error*/
   }
 
-  /* TODO: Check if message is OK */
+  /* Check if message is OK */
+  arg_read = sscanf(msg_in, "%s", verifier);
+  if (arg_read != 1) {
+    printf("Error: Invalid message");
+    destroy_fellow(fellow);
+    exit(1);
+  }
+
+  if (strcmp(verifier, "OK") != 0) {
+    printf("Error: Invalid message");
+    destroy_fellow(fellow);
+    exit(1);
+  }
+
   msg_in[nrecv] = '\0';
   printf("%s\n", msg_in);
 
 }
 
 void withdraw_cs(char *query, struct fellow *fellow) {
-  char msg_out[MAX_STR], msg_in[MAX_STR];
-  int nsend, nrecv;
+  char msg_out[MAX_STR], msg_in[MAX_STR], verifier[MAX_STR];
+  int nsend, nrecv, arg_read;
   struct sockaddr_in addr_central;
   socklen_t addrlen;
 
@@ -191,7 +208,8 @@ void withdraw_cs(char *query, struct fellow *fellow) {
                   (struct sockaddr*) &(addr_central),
                   sizeof(addr_central) );
   if( nsend == -1 ) {
-    printf("Error: send");
+    destroy_fellow(fellow);
+    perror("Error: Send to central\nDescription:");
     exit(1); /*error*/
   }
 
@@ -200,11 +218,25 @@ void withdraw_cs(char *query, struct fellow *fellow) {
   nrecv = recvfrom( fellow->fd_central, msg_in, MAX_STR, 0,
                     (struct sockaddr*) &(addr_central), &addrlen );
   if( nrecv == -1 ) {
-    printf("Error: recv");
+    destroy_fellow(fellow);
+    perror("Error: Receive from central\nDescription:");
     exit(1); /*error*/
   }
 
-  /* TODO: Check if reply is an OK? */
+  /* Check if message is OK */
+  arg_read = sscanf(msg_in, "%s", verifier);
+  if (arg_read != 1) {
+    printf("Error: Invalid message");
+    destroy_fellow(fellow);
+    exit(1);
+  }
+
+  if (strcmp(verifier, "OK") != 0) {
+    printf("Error: Invalid message");
+    destroy_fellow(fellow);
+    exit(1);
+  }
+
   msg_in[nrecv] = '\0';
   printf("%s\n", msg_in);
 }

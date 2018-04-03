@@ -56,8 +56,8 @@ int main(int argc, char const *argv[]) {
 
     counter = select(max_fd+1, &rfds, (fd_set*) NULL, (fd_set*) NULL, (struct timeval *) NULL);
     if (counter <= 0) {
-      printf("Error: select\n");
-
+      destroy_fellow(&fellow);
+      perror("Error: select\nDescription:");
       exit(1); /*error*/
     }
 
@@ -77,7 +77,8 @@ int main(int argc, char const *argv[]) {
           printf("PROTOCOL: the previous disconnect TCP\n");
         } else if (ret == 1) {
           /* Invalid input message. */
-
+          printf("Error: Invalid message from previous server\n");
+          destroy_fellow(&fellow);
           exit_f = 1;
         }
       }
@@ -140,7 +141,9 @@ int main(int argc, char const *argv[]) {
       /* A fellow is trying to connect to this one. */
       if (!fellow.start) {
         /* Out of time connection. Only makes sense if this is start? */
-        printf("Erro: TCP accept by a non-start server");
+        printf("Error: TCP accepted by a non-start server");
+        destroy_fellow(&fellow);
+        exit(1);
       }
 
       if (fellow.prev_flag) {
@@ -157,7 +160,7 @@ int main(int argc, char const *argv[]) {
       addrlen = sizeof(addr_acpt);
       if ( (fellow.fd_prev = accept( fellow.fd_listen,
            (struct sockaddr*) &addr_acpt, &addrlen) ) == -1 ) {
-        printf("Erro: TCP Accept");
+        perror("Error: TCP Accept\nDescription:");
         exit(1); /* error */
       }
       printf("PROTOCOL: accepted NEW\n");
@@ -248,6 +251,7 @@ int parse_user_input(int *service) {
   if (arg_read != 1) {
 		/*Argument not read*/
 		printf("Error: Invalid message\n");
+    return IN_ERROR;
 	}
 
   /* Parse input. */
@@ -257,6 +261,7 @@ int parse_user_input(int *service) {
     if (arg_read != 1) {
       /*Argument not read*/
       printf("Error: Invalid message\n");
+      return IN_ERROR;
     }
 
     /* Check if this server alreay belongs to a service ring. */
@@ -306,6 +311,8 @@ void serve_client(struct fellow *fellow) {
   nread = recvfrom( fellow->fd_service, msg_in, MAX_STR, 0,
                     (struct sockaddr*) &(addr_client), &addrlen );
   if (nread==-1) {
+    perror("Error: Receive from client\nDescription:");
+    destroy_fellow(fellow);
     exit(1); /*error*/
   }
 
@@ -314,11 +321,13 @@ void serve_client(struct fellow *fellow) {
   arg_read = sscanf(msg_in, "MY_SERVICE %s%n", toggle, &char_read);
   if (arg_read != 1) {
     /*Argument not read*/
-    printf("Error: Invalid message");
+    printf("Error: Invalid message from client\n");
+    destroy_fellow(fellow);
     exit(1);
   }
   if (char_read != strlen(msg_in)) {
-    printf("Error: Not every character was read");
+    printf("Error: Not every character was read\n");
+    destroy_fellow(fellow);
     exit(1);
   }
 
@@ -328,22 +337,26 @@ void serve_client(struct fellow *fellow) {
     ret = sendto( fellow->fd_service, msg_out, strlen(msg_out), 0,
                   (struct sockaddr*) &(addr_client), addrlen );
     if (ret==-1) {
+      perror("Error: Sending to client\nDescription:");
+      destroy_fellow(fellow);
       exit(1); /*error*/
     }
 
-    /* FIXME: rework this all */
   } else if (strcmp(toggle, "OFF") == 0) {
     become_available(fellow);
     sprintf(msg_out, "YOUR_SERVICE OFF");
     ret = sendto( fellow->fd_service, msg_out, strlen(msg_out), 0,
                   (struct sockaddr*) &(addr_client), addrlen );
     if (ret==-1) {
+      perror("Error: Sending to client\nDescription:");
+      destroy_fellow(fellow);
       exit(1); /*error*/
     }
 
-    /* FIXME: rework this all */
   } else {
-    /* TODO: invalid message. */
-
+    /* invalid message. */
+    printf("Error: Invalid message\n");
+    destroy_fellow(fellow);
+    exit(1); /*error*/
   }
 }
