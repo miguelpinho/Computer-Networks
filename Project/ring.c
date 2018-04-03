@@ -88,11 +88,11 @@ void send_new_start(struct fellow *fellow) {
 	}
 }
 
-int read_stream(struct fellow *fellow, char buffer[MAX_STR]) {
+int read_stream(struct fellow *fellow) {
   int n;
   char msg_in[MAX_STR], tmp[MAX_STR], msg_parse[MAX_STR], *ch, *cur;
 
-  strcpy(tmp, buffer);
+  strcpy(tmp, fellow->in_buffer);
 
   n = read(fellow->fd_prev, msg_in, MAX_STR);
 
@@ -138,7 +138,7 @@ int read_stream(struct fellow *fellow, char buffer[MAX_STR]) {
     cur = ch+1;
   }
 
-  strcpy(buffer, cur);
+  strcpy(fellow->in_buffer, cur);
 
   return n;
 }
@@ -304,6 +304,7 @@ void join_ring(struct fellow *fellow , int tpt_start , char *ip_start, int id_st
   }
 
   fellow->prev_flag = 1;
+  fellow->in_buffer[0] = '\0';
 
   printf("PROTOCOL: accepted connection\n");
 
@@ -401,17 +402,48 @@ void token_new(struct fellow *fellow, int id_start, int id_new, char *ip_new, in
 }
 
 /* User input exit */
-int exit_ring(struct fellow *fellow) {
+int trigger_exit_ring(struct fellow *fellow) {
 
-  /* Manage availability inheritance. */
-  if (fellow->dispatch == 1) {
-    become_unavailable(fellow);
+  if (fellow ->next.id == -1) {
+    /* This fellow is alone, ring exit is fast (jump exit protocol). */
+    fellow->exiting = DONE_EXIT; /* Exit */
+
+    if (fellow->dispatch == 1) {
+      become_unavailable(fellow);
+    }
+
+    fellow->service = -1;
+
+    return 2;
   }
-  /* To leave it can't be available for receiving new service requests */
-  fellow->available = 0;
 
-  /* Manage start inheritance. */
+  /* Signal this fellow has entered the exit protocol */
+  fellow->exiting = TRIG_EXIT; 
+
+  if (fellow->dispatch == 1) {
+    /* Before it can leave it has to manage the ring availability */
+
+    /* Manage availability inheritance. */
+    /* To leave, it can't be available for receiving new service requests */
+    fellow->available = 0;
+
+    become_unavailable(fellow);
+
+    return 0;
+  } else {
+    /* Can proceed with exit protocol. */
+
+    launch_exit_ring(fellow);
+  }
+
+  return 1;
+}
+
+/* Trigered exit ring is ready to be processed */
+int launch_exit_ring(struct fellow *fellow) {
+
   if (fellow->start == 1) {
+    /* Manage start inheritance. */
     /* Withdraw as start from central */
 
     withdraw_cs("WITHDRAW_START", fellow);
@@ -431,16 +463,11 @@ int exit_ring(struct fellow *fellow) {
 
     close(fellow->next.fd_next);
     fellow->next.id = -1;
-
-    /* wait for disconnects, from previous and next */
-    /* FIXME: delete this, only closes when receives O */
-    close(fellow->fd_prev);
-    fellow->prev_flag = 0;
   }
 
-  fellow->service = -1;
-
-  return 1;
+  /* Disconnect from next (FIXME) */
+  close(fellow->fd_next);
+  fellow->next.id = -1;
 }
 
 /* Receives token exit */
@@ -449,17 +476,27 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
   struct sockaddr_in addr;
   socklen_t addrlen;
 
-  /*
-    if (id_out == fellow->id) {
-      // The ring as been rebuilt, this can exit.
+  if (id_out == fellow->id) {
+    /* The ring as been rebuilt, this can exit */
 
-      close(fellow->fd_prev);
-    fellow->prev_flag = 0;   
+    if (fellow->exiting != 1) {
+      /* Something is wrong. */
+      printf("PROTOCOL: received O from itself when not in exit protocol\n");
     }
-  */
+
+    close(fellow->fd_prev);
+    fellow->prev_flag = 0;
+
+    fellow->exiting = DONE_EXIT; 
+
+    return;   
+  }
 
   if (fellow->next.id == id_out) {
     /* This is the previous fellow of the one leaving */
+
+    /* Warn the next it can safely exit */
+    send_token('O', fellow, id_out, id_next, ip_next, tpt_next);
 
     if (fellow->id == id_next) {
       /* This fellow will be alone in the ring */
@@ -513,7 +550,9 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
         printf("Error: TCP accept in exit protocol\n");
         exit(1); /* error */
       }
+
       fellow->prev_flag = 1;
+      fellow->in_buffer[0] = '\0';
     }
   }
 }
@@ -525,8 +564,6 @@ void token_new_start(struct fellow *fellow) {
 
   fellow->start = 1;
 }
-
-
 /*****STEP 2 END*****/
 
 /*****STEP 3 BEGIN: manage availability*****/
@@ -588,6 +625,12 @@ void token_transfer( struct fellow *fellow, int id_sender) {
     /* Send token T to the next*/
     send_token('T', fellow, id_sender, 0, 0, 0);
 
+  } else {
+    /* If this unavailable was caused by exit, continue protocol */
+    if (fellow->exiting == TRIG_EXIT) {
+
+      launch_exit_ring(fellow);
+    }
   }
 }
 
@@ -595,22 +638,24 @@ void token_transfer( struct fellow *fellow, int id_sender) {
 void token_unavailable( struct fellow *fellow, int id_sender) {
   fellow->nw_available_flag = 0;
 
-  /* The case of the recently entered address */
-  if ( fellow->available == 1) {
+  if (fellow->id == id_sender) {
+    if (fellow->exiting == TRIG_EXIT) {
+    /* The sender of I was waiting for exit. Can proceed now */
 
+    launch_exit_ring(fellow);
+  
+    }
+  } else {
+    /* Discover the ring is unavailable and pass that knowledge */
     fellow->ring_unavailable = 1;
     send_token('I', fellow, id_sender, 0, 0, 0);
-    become_available(fellow);
 
-    /* Check if it arrived the sender of the token S */
-  } else if ( fellow->id != id_sender) {
-
-    fellow->ring_unavailable = 1;
-    /* Send token I to the next*/
-    send_token('I', fellow, id_sender, 0, 0, 0);
-
+    /* After, if it is available, revert unavailability */
+    if (fellow->available == 1) {
+      
+      become_available(fellow);   
+    }
   }
-
 
 }
 

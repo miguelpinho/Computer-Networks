@@ -17,12 +17,15 @@ void new_fellow(struct fellow *this) {
   this->prev_flag = 0;
   this->nw_arrival_flag = 0;
   this->nw_available_flag = 0;
+  this->exiting = 0;
 
   this->service = -1;
 
   /* FIXME: set next to none */
   this->next.id = -1;
 
+  /* Init in buffer */
+  this->in_buffer = '\0';
 }
 
 void create_sockets(struct fellow *fellow) {

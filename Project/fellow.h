@@ -21,6 +21,8 @@
 
 #define MAX_STR 128
 
+enum exit_type {NO_EXIT, TRIG_EXIT, DONE_EXIT};
+
 /* next server in the fellowship ring */
 struct next_fellow {
   int id;
@@ -35,6 +37,7 @@ struct fellow {
   int start, available, ring_unavailable, dispatch;
   int nw_arrival_flag; /* a new fellow is connecting */
   int nw_available_flag; /* a fellow is available when the ring is unavailable */
+  int exiting; /* this fellow is waiting for confirmation of exit */
   int prev_flag; /* there is a previous */
 
   /* service */
@@ -50,6 +53,9 @@ struct fellow {
   /* address */
   int id, upt, tpt, cspt;
   char ip[MAX_STR], csip[MAX_STR];
+
+  /* in buffer */
+  char in_buffer[MAX_STR];
 };
 
 void new_fellow(struct fellow *this);

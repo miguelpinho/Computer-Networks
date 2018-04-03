@@ -23,7 +23,7 @@ int parse_user_input(int *service);
 void serve_client(struct fellow *fellow);
 
 int main(int argc, char const *argv[]) {
-  int sel_in, exit_f = 0, max_fd = 0;
+  int sel_in, exit_f = 0, exit_delay = 0, max_fd = 0;
   int counter, ret;
   fd_set rfds;
   char buffer[MAX_STR];
@@ -31,7 +31,6 @@ int main(int argc, char const *argv[]) {
   struct sockaddr addr_acpt;
   socklen_t addrlen = sizeof(addr_acpt);
 
-  buffer[0] = '\0';
   new_fellow(&fellow);
 
   get_arguments(argc, argv, &(fellow.id), fellow.ip, &(fellow.upt),
@@ -68,7 +67,7 @@ int main(int argc, char const *argv[]) {
         /* Message(s) from previous. */
 
         /* Read input. */
-        ret = read_stream(&fellow, buffer);
+        ret = read_stream(&fellow);
         if (ret == 0) {
           /* The previous disconnected */
           fellow.prev_flag = 0;
@@ -110,7 +109,7 @@ int main(int argc, char const *argv[]) {
           exit_ring(&fellow);
           break;
         case IN_EXIT:
-          exit_f = 1;
+          exit_delay = 1;
 
           if (fellow.service != -1) {
             /* Has to exit the service ring. */
@@ -162,11 +161,23 @@ int main(int argc, char const *argv[]) {
       }
       printf("PROTOCOL: accepted NEW\n");
 
-      /* Mark it is listining to a fellow and clean input buffer. */
+      /* Mark it as listining to a new fellow and clean input buffer. */
       fellow.prev_flag = 1;
-      buffer[0] = '\0';
+      fellow.in_buffer[0] = '\0';
 
       fellow.nw_arrival_flag = 1;
+    }
+
+    /* Check if internal state has changed */
+    if (fellow->exiting == EXIT_DONE) {
+
+      if (exit_delay == 1) {
+        
+        exit_f = 1;
+      } else {
+        
+        fellow->exiting = NO_EXIT;
+      }
     }
   }
 
