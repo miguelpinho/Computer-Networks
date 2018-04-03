@@ -243,7 +243,7 @@ int message_nw_arrival (char *msg, struct fellow *fellow) {
   }
   if (char_read != strlen(msg)) {
     /*Garbage characters*/
-    
+
     goto error_msg;
   }
 
@@ -251,18 +251,18 @@ int message_nw_arrival (char *msg, struct fellow *fellow) {
     arg_read = sscanf(msg_data, "%d;%[^;];%d%n", &id, ip, &tpt, &char_read);
     if (arg_read != 3) {
       /*Argument not read*/
-      
+
       goto error_msg;
     }
     if (char_read != strlen(msg_data)) {
       /*Garbage characters*/
-      
+
       goto error_msg;
     }
 
     new_arrival_ring(fellow, id, tpt, ip, fellow->id);
   } else {
-    
+
     goto error_msg;
   }
 
@@ -436,14 +436,13 @@ int trigger_exit_ring(struct fellow *fellow) {
   }
 
   /* Signal this fellow has entered the exit protocol */
-  fellow->exiting = TRIG_EXIT; 
+  fellow->exiting = TRIG_EXIT;
 
   if (fellow->dispatch == 1) {
     /* Before it can leave it has to manage the ring availability */
 
     /* Manage availability inheritance. */
-    /* To leave, it can't be available for receiving new service requests */
-    fellow->available = 0;
+
 
     become_unavailable(fellow);
 
@@ -506,10 +505,11 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
 
     close(fellow->fd_prev);
     fellow->prev_flag = 0;
+    fellow->service = -1;
 
-    fellow->exiting = DONE_EXIT; 
+    fellow->exiting = DONE_EXIT;
 
-    return;   
+    return;
   }
 
   if (fellow->next.id == id_out) {
@@ -668,7 +668,7 @@ void token_unavailable( struct fellow *fellow, int id_sender) {
     /* The sender of I was waiting for exit. Can proceed now */
 
     launch_exit_ring(fellow);
-  
+
     }
   } else {
     /* Discover the ring is unavailable and pass that knowledge */
@@ -677,8 +677,8 @@ void token_unavailable( struct fellow *fellow, int id_sender) {
 
     /* After, if it is available, revert unavailability */
     if (fellow->available == 1) {
-      
-      become_available(fellow);   
+
+      become_available(fellow);
     }
   }
 
@@ -698,7 +698,7 @@ void become_available( struct fellow *fellow) {
       set_cs("SET_DS", fellow, fellow->upt);
     } else {
       /* Turn on the flag responsible for becoming available */
-      
+
       fellow->nw_available_flag = 1;
       fellow->ring_unavailable = 0;
 
