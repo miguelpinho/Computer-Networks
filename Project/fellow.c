@@ -17,7 +17,8 @@ void new_fellow(struct fellow *this) {
   this->prev_flag = 0;
   this->nw_arrival_flag = 0;
   this->nw_available_flag = 0;
-  this->exiting = 0;
+  this->exiting = NO_EXIT;
+  this->wait_connect = 0;
 
   this->service = -1;
 

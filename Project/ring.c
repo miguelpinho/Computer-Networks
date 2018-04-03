@@ -499,7 +499,7 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
   if (id_out == fellow->id) {
     /* The ring as been rebuilt, this can exit */
 
-    if (fellow->exiting != 1) {
+    if (fellow->exiting == NO_EXIT) {
       /* Something is wrong. */
       printf("PROTOCOL: received O from itself when not in exit protocol\n");
     }

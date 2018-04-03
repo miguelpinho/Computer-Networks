@@ -156,6 +156,7 @@ int main(int argc, char const *argv[]) {
       /* Accept new fellow. */
       printf("PROTOCOL: will accept NEW\n");
       addrlen = sizeof(addr_acpt);
+
       if ( (fellow.fd_prev = accept( fellow.fd_listen,
            (struct sockaddr*) &addr_acpt, &addrlen) ) == -1 ) {
         perror("Error: TCP Accept\nDescription:");
@@ -201,7 +202,7 @@ void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, in
     exit(1);
   }
 
-  for ( i = 1 ; i <= argc/2 ; i++){
+  for (i = 1; i <= argc/2; i++) {
 
     sscanf(argv[2*i-1],"-%c", &ident);
 
@@ -231,21 +232,22 @@ void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, in
         exit(1);
     }
   }
-    if (csi != 1) {
-      if((h = gethostbyname(DEFAULT_HOST)) == NULL) {
-        exit(1);
-      }
-
-      a = (struct in_addr*) h->h_addr_list[0];
-      sprintf(csip, "%s", inet_ntoa(*a));
+  
+  if (csi != 1) {
+    if((h = gethostbyname(DEFAULT_HOST)) == NULL) {
+      exit(1);
     }
 
-    if (csp != 1) {
-      *cspt = DEFAULT_PORT;
-    }
-
-    return;
+    a = (struct in_addr*) h->h_addr_list[0];
+    sprintf(csip, "%s", inet_ntoa(*a));
   }
+
+  if (csp != 1) {
+    *cspt = DEFAULT_PORT;
+  }
+
+  return;
+}
 
 int parse_user_input(int *service) {
   char buffer[MAX_STR], cmd[MAX_STR];
@@ -269,7 +271,7 @@ int parse_user_input(int *service) {
   if (strcmp(cmd, "join") == 0) {
     /* Read service id. */
     arg_read = sscanf(buffer, "%*s %d", &new_sv);
-    
+
     if (arg_read != 1) {
       /*Argument not read*/
 

@@ -39,6 +39,7 @@ struct fellow {
   int nw_arrival_flag; /* a new fellow is connecting */
   int nw_available_flag; /* a fellow is available when the ring is unavailable */
   int exiting; /* this fellow is waiting for confirmation of exit */
+  int wait_connect; /* waiting from a reconnection from a peer */
   int prev_flag; /* there is a previous */
 
   /* service */
