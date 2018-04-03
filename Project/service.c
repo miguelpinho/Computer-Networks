@@ -260,6 +260,7 @@ int parse_user_input(int *service) {
   arg_read = sscanf(buffer, "%s", cmd);
   if (arg_read != 1) {
 		/*Argument not read*/
+
 		printf("Error: Invalid message\n");
     return IN_ERROR;
 	}
@@ -268,8 +269,10 @@ int parse_user_input(int *service) {
   if (strcmp(cmd, "join") == 0) {
     /* Read service id. */
     arg_read = sscanf(buffer, "%*s %d", &new_sv);
+    
     if (arg_read != 1) {
       /*Argument not read*/
+
       printf("Error: Invalid message\n");
       return IN_ERROR;
     }

@@ -32,18 +32,29 @@ void create_sockets(struct fellow *fellow) {
   int ret;
   struct sockaddr_in addr_fellow, addr_service;
 
+  struct timeval timeout;      
+  timeout.tv_sec = 10;
+  timeout.tv_usec = 0;
+
   /* Create socket for communication with central. */
   fellow->fd_central = socket(AF_INET, SOCK_DGRAM, 0);
 	if(fellow->fd_central == -1) {
     perror("Error: Creating central socket\nDescription:");
-    exit(1); /*error*/
+    exit(1); /* error */
   }
 
+  /* Set recv timeout for central socket. */
+  if (setsockopt ( fellow->fd_central, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
+                   sizeof(timeout)) < 0 ) {
+    perror("Error: timeout central socket\nDescription:");
+    exit(1); /* error */
+  }
+       
   /* Create socket for the service to the client. */
   fellow->fd_service = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fellow->fd_service == -1) {
     perror("Error: Creating serving socket\nDescription:");
-    exit(1); /*error*/
+    exit(1); /* error */
   }
 
   /* Binds client serving socket to the given address. */

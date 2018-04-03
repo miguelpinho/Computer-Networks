@@ -238,10 +238,12 @@ int message_nw_arrival (char *msg, struct fellow *fellow) {
   arg_read = sscanf(msg, "%s %s%n", msg_type, msg_data, &char_read);
   if (arg_read != 2) {
     /*Argument not read*/
+
     goto error_msg;
   }
   if (char_read != strlen(msg)) {
     /*Garbage characters*/
+    
     goto error_msg;
   }
 
@@ -249,15 +251,18 @@ int message_nw_arrival (char *msg, struct fellow *fellow) {
     arg_read = sscanf(msg_data, "%d;%[^;];%d%n", &id, ip, &tpt, &char_read);
     if (arg_read != 3) {
       /*Argument not read*/
+      
       goto error_msg;
     }
     if (char_read != strlen(msg_data)) {
       /*Garbage characters*/
+      
       goto error_msg;
     }
 
     new_arrival_ring(fellow, id, tpt, ip, fellow->id);
   } else {
+    
     goto error_msg;
   }
 
