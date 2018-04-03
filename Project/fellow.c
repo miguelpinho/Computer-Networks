@@ -104,11 +104,11 @@ void destroy_fellow(struct fellow *this) {
   close(this->fd_central);
   close(this->fd_service);
   close(this->fd_listen);
-  if (fellow->next.id == -1) {
+  if (this->next.id == -1) {
     close(this->next.fd_next);
   }
 
-  if (fellow->prev_flag == 1) {
+  if (this->prev_flag == 1) {
     close(this->fd_prev);
   }
 }
