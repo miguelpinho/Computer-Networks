@@ -443,11 +443,11 @@ int exit_ring(struct fellow *fellow) {
     /* pass token exit */
     send_token('O', fellow, fellow->id, fellow->next.id, fellow->next.ip, fellow->next.tpt);
 
-    /* wait for disconnects, from previous and next */
-    /* TODO */
-
     close(fellow->next.fd_next);
     fellow->next.id = -1;
+
+    /* wait for disconnects, from previous and next */
+    /* FIXME: delete this, only closes when receives O */
     close(fellow->fd_prev);
     fellow->prev_flag = 0;
   }
@@ -462,6 +462,15 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
   int n;
   struct sockaddr_in addr;
   socklen_t addrlen;
+
+  /*
+    if (id_out == fellow->id) {
+      // The ring as been rebuilt, this can exit.
+
+      close(fellow->fd_prev);
+    fellow->prev_flag = 0;   
+    }
+  */
 
   if (fellow->next.id == id_out) {
     /* This is the previous fellow of the one leaving */
