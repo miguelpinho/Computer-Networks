@@ -10,10 +10,10 @@
 void new_fellow(struct fellow *this) {
 
   /* FIXME: initialize state variables */
-  this->start = -1;
-  this->available = -1;
-  this->ring_unavailable = -1;
-  this->dispatch = -1;
+  this->start = 0;
+  this->available = 1;
+  this->ring_unavailable = 0;
+  this->dispatch = 0;
   this->prev_flag = 0;
   this->nw_arrival_flag = 0;
   this->nw_available_flag = 0;

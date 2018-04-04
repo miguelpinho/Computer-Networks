@@ -341,6 +341,8 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
     addr_new.sin_addr.s_addr = inet_addr(ip_new);
     addr_new.sin_port = htons(tpt_new);
 
+    sleep(5);
+
     printf("PROTOCOL: START will connect to NEW\n");
 
     n = connect(fellow->next.fd_next, (struct sockaddr*) &addr_new, sizeof(addr_new));
@@ -419,6 +421,10 @@ int trigger_exit_ring(struct fellow *fellow) {
       become_unavailable(fellow);
     }
 
+    if (fellow->start == 1) {
+      withdraw_cs("WITHDRAW_START", fellow);
+    }
+
     fellow->service = -1;
 
     return 2;
@@ -431,8 +437,6 @@ int trigger_exit_ring(struct fellow *fellow) {
     /* Before it can leave it has to manage the ring availability */
 
     /* Manage availability inheritance. */
-
-
     become_unavailable(fellow);
 
     return 0;
