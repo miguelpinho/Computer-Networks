@@ -341,7 +341,7 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
     addr_new.sin_addr.s_addr = inet_addr(ip_new);
     addr_new.sin_port = htons(tpt_new);
 
-    sleep(5);
+    sleep(1);
 
     printf("PROTOCOL: START will connect to NEW\n");
 
@@ -349,6 +349,10 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
     if (n==-1) {
       perror("Error: failed to connect to NEW\nDescription: ");
       brute_exit(fellow);
+    }
+
+    if (fellow->ring_unavailable == 1) {
+      send_token('I', fellow, fellow->id, 0, 0, 0);
     }
 
     printf("PROTOCOL: START connected to NEW\n");
@@ -469,7 +473,7 @@ int launch_exit_ring(struct fellow *fellow) {
 
   if (fellow->next.id != -1) {
     /* pass token exit */
-    
+
     send_token('O', fellow, fellow->id, fellow->next.id, fellow->next.ip, fellow->next.tpt);
   }
 
