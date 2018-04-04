@@ -113,6 +113,8 @@ int main(int argc, char const *argv[]) {
             /* Has to exit the service ring. */
 
             trigger_exit_ring(&fellow);
+          } else {
+            exit_f = 1;
           }
           break;
         case IN_NO_JOIN:
@@ -198,38 +200,58 @@ int main(int argc, char const *argv[]) {
 void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt) {
   int i;
   char ident;
-  int csi = 0, csp = 0;
+  int csi = 0, csp = 0, arg_read;
   struct hostent *h;
   struct in_addr *a;
 
-  if (argc < 9) {
+  if (argc < 9 || argc > 13) {
     printf("Error: incorrect number of arguments\n");
     exit(1);
   }
 
-  for (i = 1; i <= argc/2; i++) {
+  for (i = 1; i < argc; i+=2) {
 
-    sscanf(argv[2*i-1],"-%c", &ident);
+    arg_read = sscanf(argv[i],"-%c", &ident);
+    if (arg_read != 1) {
+      printf("Error: Invalid argument\n");
+      exit(1);
+    }
 
     switch(ident){
       case 'n' :
-        sscanf(argv[2*i],"%d", id);
+        arg_read = sscanf(argv[i+1],"%d", id);
+        if (arg_read != 1) {
+          printf("Error: Invalid argument\n");
+          exit(1);
+        }
         break;
       case 'j' :
-        strcpy(ip, argv[2*i]);
+        strcpy(ip, argv[i+1]);
         break;
       case 'u' :
-        sscanf(argv[2*i],"%d", upt);
+        arg_read = sscanf(argv[i+1],"%d", upt);
+        if (arg_read != 1) {
+          printf("Error: Invalid argument\n");
+          exit(1);
+        }
         break;
       case 't' :
-        sscanf(argv[2*i],"%d", tpt);
+        arg_read = sscanf(argv[i+1],"%d", tpt);
+        if (arg_read != 1) {
+          printf("Error: Invalid argument\n");
+          exit(1);
+        }
         break;
       case 'i' :
-        strcpy(csip, argv[2*i]);
+        strcpy(csip, argv[i+1]);
         csi = 1;
         break;
       case 'p' :
-        sscanf(argv[2*i],"%d", cspt);
+        arg_read = sscanf(argv[i+1],"%d", cspt);
+        if (arg_read != 1) {
+          printf("Error: Invalid argument\n");
+          exit(1);
+        }
         csp = 1;
         break;
       default:
@@ -321,19 +343,20 @@ int parse_user_input(int *service) {
 
 void serve_client(struct fellow *fellow) {
   int ret, nread, arg_read, char_read;
-  struct sockaddr_in addr_client;
   socklen_t addrlen;
   char toggle[MAX_STR], msg_in[MAX_STR], msg_out[MAX_STR];
 
-  memset((void*) &(addr_client), (int) '\0', sizeof(addr_client));
+  memset((void*) &(fellow->addr_client), (int) '\0', sizeof(fellow->addr_client));
   addrlen = sizeof(struct sockaddr_in);
 
   nread = recvfrom( fellow->fd_service, msg_in, MAX_STR, 0,
-                    (struct sockaddr*) &(addr_client), &addrlen );
+                    (struct sockaddr*) &(fellow->addr_client), &addrlen );
   if (nread==-1) {
     perror("Error: Receive from client\nDescription:");
     brute_exit(fellow);
   }
+
+
 
   msg_in[nread] = '\0';
 
@@ -352,7 +375,7 @@ void serve_client(struct fellow *fellow) {
     become_unavailable(fellow);
     sprintf(msg_out, "YOUR_SERVICE ON");
     ret = sendto( fellow->fd_service, msg_out, strlen(msg_out), 0,
-                  (struct sockaddr*) &(addr_client), addrlen );
+                  (struct sockaddr*) &(fellow->addr_client), addrlen );
     if (ret==-1) {
       perror("Error: Sending to client\nDescription:");
       brute_exit(fellow);
@@ -362,7 +385,7 @@ void serve_client(struct fellow *fellow) {
     become_available(fellow);
     sprintf(msg_out, "YOUR_SERVICE OFF");
     ret = sendto( fellow->fd_service, msg_out, strlen(msg_out), 0,
-                  (struct sockaddr*) &(addr_client), addrlen );
+                  (struct sockaddr*) &(fellow->addr_client), addrlen );
     if (ret==-1) {
       perror("Error: Sending to client\nDescription:");
       brute_exit(fellow);

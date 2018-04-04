@@ -21,6 +21,7 @@
 
 #define MAX_STR 128
 #define MAX_IP 20
+#define N_CHANCES 3
 
 enum exit_type {NO_EXIT, TRIG_EXIT, DONE_EXIT};
 
@@ -58,6 +59,8 @@ struct fellow {
 
   /* in buffer */
   char in_buffer[MAX_STR];
+
+  struct sockaddr_in addr_client;
 };
 
 void new_fellow(struct fellow *this);

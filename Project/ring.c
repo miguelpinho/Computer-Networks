@@ -416,6 +416,20 @@ void token_new(struct fellow *fellow, int id_start, int id_new, char *ip_new, in
 
 /* User input exit */
 int trigger_exit_ring(struct fellow *fellow) {
+  char msg_out[MAX_STR];
+  socklen_t addrlen = sizeof(fellow->addr_client);
+  int ret;
+
+  /* If this server is providing a service it ends it before exiting */
+  if (fellow->available == 0) {
+    sprintf(msg_out, "YOUR_SERVICE OFF");
+    ret = sendto( fellow->fd_service, msg_out, strlen(msg_out), 0,
+                  (struct sockaddr*) &(fellow->addr_client), addrlen );
+    if (ret==-1) {
+      perror("Error: Sending to client\nDescription:");
+      brute_exit(fellow);
+    }
+  }
 
   if (fellow ->next.id == -1) {
     /* This fellow is alone, ring exit is fast (jump exit protocol). */
@@ -543,7 +557,7 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
       addr.sin_port = htons(tpt_next);
 
       addrlen = sizeof(addr);
-      n = connect(fellow->next.fd_next, (struct sockaddr*) &addr, sizeof(addr));
+      n = connect(fellow->next.fd_next, (struct sockaddr*) &addr, addrlen);
     	if (n == -1) {
         perror("Error: TCP connect\nDescription:");
         brute_exit(fellow);
@@ -691,7 +705,7 @@ void become_available( struct fellow *fellow) {
 
 /* What happens when you receive a token D */
 void token_available( struct fellow *fellow, int id_sender) {
-
+  fellow->ring_unavailable = 0;
   /* Arrives the sender */
   if (fellow->id == id_sender) {
     fellow->ring_unavailable = 0;

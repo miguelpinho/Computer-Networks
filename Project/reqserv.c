@@ -10,6 +10,7 @@
 #include <string.h>
 
 #define MAX_STR 50
+#define N_CHANCES 3
 #define DEFAULT_HOST "tejo.tecnico.ulisboa.pt"
 #define DEFAULT_PORT 59000
 #define max(A,B) ((A)>=(B)?(A):(B))
@@ -26,12 +27,12 @@ int main(int argc, char const *argv[])
 	int fd_udp, fd_udp_serv, cspt, service = -1, id, upt, exit_f = 0, sel_in, max_fd = 0;
 	socklen_t addrlen;
 	struct sockaddr_in addr_central, addr_service;
-	char csip[MAX_STR], ip[MAX_STR];
+	char csip[MAX_STR], ip[MAX_STR], msg_in[MAX_STR];
 	fd_set rfds;
-	int counter;
+	int counter, nrecv;
 
 	struct timeval timeout;
-  timeout.tv_sec = 10;
+  timeout.tv_sec = 5;
   timeout.tv_usec = 0;
 
   get_arguments(argc, argv, csip, &cspt);
@@ -104,7 +105,6 @@ int main(int argc, char const *argv[])
 					break;
 				case IN_ERROR:
 					printf("Error: Client interface\n");
-					exit(1);
 					break;
 				case IN_NO_RS:
 					printf("One service is already running\n");
@@ -115,7 +115,17 @@ int main(int argc, char const *argv[])
 				}
 			}
 		if(FD_ISSET(fd_udp_serv, &rfds)) {
-			/* No idea what to do here */
+			/* Stop providing service when the server leaves */
+			nrecv = recvfrom(fd_udp_serv, msg_in, 128, 0, (struct sockaddr*)&addr_service, &addrlen);
+
+			if( nrecv == -1 ) {
+				perror("Error: Receive from server\nDescription:");
+				exit(1); /*error*/
+			}
+
+			msg_in[nrecv] = '\0';
+			printf("%s\n", msg_in);
+			service = -1;
 
 		}
 	}
@@ -128,17 +138,21 @@ int main(int argc, char const *argv[])
 void get_arguments (int argc, const char *argv[], char *csip, int *cspt) {
   int i;
   char ident;
-  int csi = 0, csp = 0;
+  int csi = 0, csp = 0, arg_read;
   struct hostent *h;
   struct in_addr *addr_cs;
 
-  if (argc < 1) {
+  if (argc < 1 || argc > 5) {
     printf("Error: incorrect number of arguments");
     exit(1);
   }
 
   for (i = 1; i < argc; i+=2) {
-    sscanf(argv[i],"-%c", &ident);
+    arg_read = sscanf(argv[i],"-%c", &ident);
+		if (arg_read != 1) {
+      printf("Error: Invalid argument\n");
+      exit(1);
+    }
 
     switch(ident){
       case 'i' :
@@ -146,7 +160,11 @@ void get_arguments (int argc, const char *argv[], char *csip, int *cspt) {
         csi = 1;
         break;
       case 'p' :
-        sscanf(argv[i+1],"%d", cspt);
+        arg_read = sscanf(argv[i+1],"%d", cspt);
+				if (arg_read != 1) {
+		      printf("Error: Invalid argument\n");
+		      exit(1);
+		    }
         csp = 1;
         break;
       default:
@@ -186,7 +204,7 @@ int parse_user_input(int *service) {
 	}
 
   /* Parse input. */
-  if (strcmp(cmd, "rs") == 0) {
+  if (strcmp(cmd, "rs") == 0 || strcmp(cmd, "request_service") == 0 ) {
     /* Request service x */
 		if (*service == -1) {
 			arg_read = sscanf(buffer, "%*s %d%n", service, &char_read);
@@ -200,7 +218,7 @@ int parse_user_input(int *service) {
 			return IN_NO_RS;
 		}
 
-	} else if (strcmp(cmd, "ts") == 0) {
+	} else if (strcmp(cmd, "ts") == 0 || strcmp(cmd, "terminate_service") == 0 ) {
     /* Terminate service. */
 		if (*service != -1) {
 			*service = -1;
@@ -223,77 +241,93 @@ int parse_user_input(int *service) {
 
 void request_service(int *service, int fd_udp, int fd_udp_serv, struct sockaddr_in addr_central, struct sockaddr_in *addr_service, socklen_t *addrlen, int *id, char *ip, int *upt) {
   char msg_in[MAX_STR], msg_out[MAX_STR], msg_type[MAX_STR], msg_data[MAX_STR];
-  int nsend, nrecv,  arg_read, char_read;
+  int nsend, nrecv,  arg_read, char_read, count = 0, c_msg = 0;
 
-  /* Check if there is one server with the wanted service. */
-  sprintf(msg_out, "GET_DS_SERVER %d", *service);
-  nsend = sendto(fd_udp, msg_out, strlen(msg_out), 0, (struct sockaddr*) &addr_central, sizeof(addr_central));
-	if( nsend == -1 ) {
-    perror("Error: Send to Central\nDescription:");
-    exit(1); /*error*/
-  }
-  *addrlen = sizeof(addr_central);
-	nrecv = recvfrom(fd_udp, msg_in, 128, 0, (struct sockaddr*) &addr_central, addrlen);
-	if( nrecv == -1 ) {
-    perror("Error: Receive from Central\nDescription:");
-		exit(1);
-  }
-  msg_in[nrecv] = '\0';
-  printf("%s\n", msg_in);
+	while (count < N_CHANCES && c_msg != 1) {
+		/* Check if there is one server with the wanted service. */
+	  sprintf(msg_out, "GET_DS_SERVER %d", *service);
+	  nsend = sendto(fd_udp, msg_out, strlen(msg_out), 0, (struct sockaddr*) &addr_central, sizeof(addr_central));
 
-  arg_read = sscanf(msg_in, "%s %d;%s%n", msg_type, id, msg_data, &char_read);
-	if (arg_read != 3) {
-		/*Argument not read*/
-		printf("Error: Invalid message");
+		if( nsend == -1 ) {
+	    perror("Error: Send to Central\nDescription:");
+	    exit(1); /*error*/
+	  }
+	  *addrlen = sizeof(addr_central);
+
+		nrecv = recvfrom(fd_udp_serv, msg_in, 128, 0, (struct sockaddr*)&addr_service, addrlen);
+
+		if( nrecv == -1 ) {
+	    perror("Error: Receive from Central\nDescription:");
+			continue;
+	  }
+
+	  msg_in[nrecv] = '\0';
+	  printf("%s\n", msg_in);
+
+	  arg_read = sscanf(msg_in, "%s %d;%s%n", msg_type, id, msg_data, &char_read);
+		if (arg_read != 3) {
+			/*Argument not read*/
+			printf("Error: Invalid message");
+			exit(1);
+		}
+		if (char_read != strlen(msg_in)) {
+			printf("Error: Not every character was read");
+			exit(1);
+		}
+
+	  if (strcmp(msg_type, "OK") != 0) {
+	    printf("Erro: msg\n");
+	  } else {
+			c_msg = 1;
+		}
+		count++;
+	}
+
+	if (c_msg == 0 || nrecv == -1) {
+		printf("Coundn't get an available answer from central server\n");
 		exit(1);
 	}
-	if (char_read != strlen(msg_in)) {
-		printf("Error: Not every character was read");
-		exit(1);
-	}
 
-  if (strcmp(msg_type, "OK") != 0) {
-    printf("Erro: msg\n");
-  } else {
-    /* Service found */
-    if (strcmp(msg_data, "0.0.0.0;0") != 0 && *id != 0) {
+  /* Service found */
+  if (strcmp(msg_data, "0.0.0.0;0") != 0 && *id != 0) {
 
-			arg_read = sscanf(msg_data, "%[^;];%d%n", ip, upt, &char_read);
-			if (arg_read != 2) {
-	      /*Argument not read*/
-	      printf("Error: Invalid message");
-	      exit(1);
-	    }
-	    if (char_read != strlen(msg_data)) {
-	      printf("Error: Not every character was read");
-	      exit(1);
-	    }
+		arg_read = sscanf(msg_data, "%[^;];%d%n", ip, upt, &char_read);
+		if (arg_read != 2) {
+      /*Argument not read*/
+      printf("Error: Invalid message");
+      exit(1);
+    }
+    if (char_read != strlen(msg_data)) {
+      printf("Error: Not every character was read");
+      exit(1);
+    }
 
-      memset((void*) addr_service, (int) '\0', sizeof(*addr_service));
-    	addr_service->sin_family = AF_INET;
-    	addr_service->sin_addr.s_addr = inet_addr(ip);
-    	addr_service->sin_port = htons(*upt);
+		memset((void*) addr_service, (int) '\0', sizeof(*addr_service));
+    addr_service->sin_family = AF_INET;
+    addr_service->sin_addr.s_addr = inet_addr(ip);
+    addr_service->sin_port = htons(*upt);
 
-      sprintf(msg_out, "MY_SERVICE ON");
-      nsend = sendto(fd_udp_serv, msg_out, strlen(msg_out), 0, (struct sockaddr*)addr_service, sizeof(*addr_service));
-    	if( nsend == -1 ) {
-        printf("Error: send");
-        exit(1); /*error*/
-      }
-      *addrlen = sizeof(*addr_service);
+    sprintf(msg_out, "MY_SERVICE ON");
+    nsend = sendto(fd_udp_serv, msg_out, strlen(msg_out), 0, (struct sockaddr*)addr_service, sizeof(*addr_service));
+    if( nsend == -1 ) {
+      printf("Error: send");
+      exit(1); /*error*/
+    }
+    *addrlen = sizeof(*addr_service);
 
-    	nrecv = recvfrom(fd_udp_serv, msg_in, 128, 0, (struct sockaddr*)addr_service, addrlen);
-    	if( nrecv == -1 ) {
+		nrecv = recvfrom(fd_udp_serv, msg_in, 128, 0, (struct sockaddr*)addr_service, addrlen);
+  	if( nrecv == -1 ) {
         printf("Error: recv");
         exit(1); /*error*/
-      }
-      msg_in[nrecv] = '\0';
-      printf("%s\n", msg_in);
-    } else {
-      /* No server providing the Service */
-			*service = -1;
-      printf("No server providing that service\n");
     }
+
+		msg_in[nrecv] = '\0';
+    printf("%s\n", msg_in);
+
+		} else {
+    /* No server providing the Service */
+		*service = -1;
+    printf("No server providing that service\n");
   }
 }
 

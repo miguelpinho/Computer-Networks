@@ -34,7 +34,7 @@ void create_sockets(struct fellow *fellow) {
   struct sockaddr_in addr_fellow, addr_service;
 
   struct timeval timeout;
-  timeout.tv_sec = 10;
+  timeout.tv_sec = 2;
   timeout.tv_usec = 0;
 
   /* Create socket for communication with central. */
@@ -114,15 +114,21 @@ void destroy_fellow(struct fellow *this) {
 }
 
 void show_state(struct fellow *fellow) {
-  printf("Service state (id = %d): \n", fellow->id);
-  printf("\tThis: %s\n", (fellow->available == 1)?"Available":"Unavailable");
-  printf("\tRing: %s\n", (fellow->ring_unavailable == 0)?"Available":"Unavailable");
-  printf("\tNext: id = %d\n", fellow->next.id);
+
+  if (fellow->service == -1) {
+    printf("Ring not associated with any service\n");
+  } else {
+    printf("Service state (id = %d): \n", fellow->id);
+    printf("\tThis: %s\n", (fellow->available == 1)?"Available":"Unavailable");
+    printf("\tRing: %s\n", (fellow->ring_unavailable == 0)?"Available":"Unavailable");
+    printf("\tNext: id = %d\n", fellow->next.id);
+  }
 }
 
+
 void register_cs(char *reply, struct fellow *fellow) {
-  char msg_out[MAX_STR], msg_in[MAX_STR];
-  int nsend, nrecv;
+  char msg_out[MAX_STR], msg_in[MAX_STR], verifier[MAX_STR];
+  int nsend, nrecv, c_msg = 0, count = 0, arg_read;
   struct sockaddr_in addr_central;
   socklen_t addrlen;
 
@@ -135,32 +141,58 @@ void register_cs(char *reply, struct fellow *fellow) {
   /* Regist this service server in the central server (UDP). */
   /* get start server */
   sprintf(msg_out, "GET_START %d;%d", fellow->service, fellow->id);
-  nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
-                  (struct sockaddr*) &(addr_central),
-                  sizeof(addr_central) );
-  if( nsend == -1 ) {
-    perror("Error: Send to central\nDescription:");
-    brute_exit(fellow);
+
+  while (count < N_CHANCES && c_msg == 0) {
+    nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
+                    (struct sockaddr*) &(addr_central),
+                    sizeof(addr_central) );
+    if( nsend == -1 ) {
+      perror("Error: Send to central\nDescription:");
+      brute_exit(fellow);
+    }
+
+    addrlen = sizeof(addr_central);
+
+    nrecv = recvfrom( fellow->fd_central, msg_in, 128, 0,
+                      (struct sockaddr*) &(addr_central), &addrlen );
+    if( nrecv == -1 ) {
+      perror("Error: Receive from central\nDescription:");
+      count++;
+      continue;
+    }
+
+    msg_in[nrecv] = '\0';
+    printf("%s\n", msg_in);
+
+    arg_read = sscanf(msg_in, "%s", verifier);
+    if (arg_read != 1) {
+      printf("Error: Invalid message");
+      count++;
+      continue;
+    }
+
+    if (strcmp(verifier, "OK") != 0) {
+      printf("Error: Invalid message - %s", msg_in);
+      count++;
+      continue;
+    } else {
+      c_msg = 1;
+    }
+
+
   }
 
-  addrlen = sizeof(addr_central);
-
-  nrecv = recvfrom( fellow->fd_central, msg_in, 128, 0,
-                    (struct sockaddr*) &(addr_central), &addrlen );
-  if( nrecv == -1 ) {
-    perror("Error: Receive from central\nDescription:");
-    brute_exit(fellow);
+  if ( c_msg == 0 || nrecv == -1 ) {
+    printf("Coundn't get an available answer from central server\n");
+		brute_exit(fellow);
   }
-
-  msg_in[nrecv] = '\0';
-  printf("%s\n", msg_in);
 
   strcpy(reply, msg_in);
 }
 
 void set_cs(char *query, struct fellow *fellow, int pt) {
   char msg_out[MAX_STR], msg_in[MAX_STR], verifier[MAX_STR];
-  int nsend, nrecv, arg_read;
+  int nsend, nrecv, arg_read, c_msg = 0, count = 0;
   struct sockaddr_in addr_central;
   socklen_t addrlen;
 
@@ -172,33 +204,46 @@ void set_cs(char *query, struct fellow *fellow, int pt) {
 
   sprintf( msg_out, "%s %d;%d;%s;%d", query, fellow->service, fellow->id,
            fellow->ip, pt );
-  nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
-                  (struct sockaddr*) &(addr_central),
-                  sizeof(addr_central) );
-  if( nsend == -1 ) {
-    perror("Error: Send to central\nDescription:");
-    brute_exit(fellow);
+
+  while( count < N_CHANCES && c_msg == 0) {
+    nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
+                    (struct sockaddr*) &(addr_central),
+                    sizeof(addr_central) );
+    if( nsend == -1 ) {
+      perror("Error: Send to central\nDescription:");
+      brute_exit(fellow);
+    }
+
+    addrlen = sizeof(addr_central);
+
+    nrecv = recvfrom( fellow->fd_central, msg_in, 128, 0,
+                      (struct sockaddr*) &(addr_central), &addrlen );
+    if( nrecv == -1 ) {
+      perror("Error: Receive from central\nDescription:");
+      count++;
+      continue;
+    }
+
+    /* Check if message is OK */
+    arg_read = sscanf(msg_in, "%s", verifier);
+    if (arg_read != 1) {
+      printf("Error: Invalid message - %s", msg_in);
+      count++;
+      continue;
+    }
+
+    if (strcmp(verifier, "OK") != 0) {
+      printf("Error: Invalid message");
+      count++;
+      continue;
+    } else {
+      c_msg = 1;
+    }
   }
 
-  addrlen = sizeof(addr_central);
-
-  nrecv = recvfrom( fellow->fd_central, msg_in, 128, 0,
-                    (struct sockaddr*) &(addr_central), &addrlen );
-  if( nrecv == -1 ) {
-    perror("Error: Receive from central\nDescription:");
-    brute_exit(fellow);
-  }
-
-  /* Check if message is OK */
-  arg_read = sscanf(msg_in, "%s", verifier);
-  if (arg_read != 1) {
-    printf("Error: Invalid message");
-    brute_exit(fellow);
-  }
-
-  if (strcmp(verifier, "OK") != 0) {
-    printf("Error: Invalid message");
-    brute_exit(fellow);
+  if (c_msg == 0 || nrecv == -1) {
+    printf("Coundn't get an available answer from central server\n");
+		brute_exit(fellow);
   }
 
   msg_in[nrecv] = '\0';
@@ -208,7 +253,7 @@ void set_cs(char *query, struct fellow *fellow, int pt) {
 
 void withdraw_cs(char *query, struct fellow *fellow) {
   char msg_out[MAX_STR], msg_in[MAX_STR], verifier[MAX_STR];
-  int nsend, nrecv, arg_read;
+  int nsend, nrecv, arg_read, count = 0, c_msg = 0;
   struct sockaddr_in addr_central;
   socklen_t addrlen;
 
@@ -219,33 +264,45 @@ void withdraw_cs(char *query, struct fellow *fellow) {
 	addr_central.sin_port = htons(fellow->cspt);
 
   sprintf(msg_out, "%s %d;%d", query, fellow->service, fellow->id);
-  nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
-                  (struct sockaddr*) &(addr_central),
-                  sizeof(addr_central) );
-  if( nsend == -1 ) {
-    perror("Error: Send to central\nDescription:");
-    brute_exit(fellow);
+  while(count < N_CHANCES && c_msg == 0) {
+    nsend = sendto( fellow->fd_central, msg_out, strlen(msg_out), 0,
+                    (struct sockaddr*) &(addr_central),
+                    sizeof(addr_central) );
+    if( nsend == -1 ) {
+      perror("Error: Send to central\nDescription:");
+      brute_exit(fellow);
+    }
+
+    addrlen = sizeof(addr_central);
+
+    nrecv = recvfrom( fellow->fd_central, msg_in, MAX_STR, 0,
+                      (struct sockaddr*) &(addr_central), &addrlen );
+    if( nrecv == -1 ) {
+      perror("Error: Receive from central\nDescription:");
+      count++;
+      continue;
+    }
+
+    /* Check if message is OK */
+    arg_read = sscanf(msg_in, "%s", verifier);
+    if (arg_read != 1) {
+      printf("Error: Invalid message");
+      count++;
+      continue;
+    }
+
+    if (strcmp(verifier, "OK") != 0) {
+      printf("Error: Invalid message");
+      count++;
+      continue;
+    } else {
+      c_msg = 1;
+    }
   }
 
-  addrlen = sizeof(addr_central);
-
-  nrecv = recvfrom( fellow->fd_central, msg_in, MAX_STR, 0,
-                    (struct sockaddr*) &(addr_central), &addrlen );
-  if( nrecv == -1 ) {
-    perror("Error: Receive from central\nDescription:");
-    brute_exit(fellow);
-  }
-
-  /* Check if message is OK */
-  arg_read = sscanf(msg_in, "%s", verifier);
-  if (arg_read != 1) {
-    printf("Error: Invalid message");
-    brute_exit(fellow);
-  }
-
-  if (strcmp(verifier, "OK") != 0) {
-    printf("Error: Invalid message");
-    brute_exit(fellow);
+  if (c_msg == 0 || nrecv == -1) {
+    printf("Coundn't get an available answer from central server\n");
+		brute_exit(fellow);
   }
 
   msg_in[nrecv] = '\0';
