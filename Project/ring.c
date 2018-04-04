@@ -469,10 +469,8 @@ int launch_exit_ring(struct fellow *fellow) {
 
   if (fellow->next.id != -1) {
     /* pass token exit */
+    
     send_token('O', fellow, fellow->id, fellow->next.id, fellow->next.ip, fellow->next.tpt);
-
-    close(fellow->next.fd_next);
-    fellow->next.id = -1;
   }
 
   /* Disconnect from next (FIXME) */
@@ -500,6 +498,9 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
     close(fellow->fd_prev);
     fellow->prev_flag = 0;
     fellow->service = -1;
+
+    close(fellow->next.fd_next);
+    fellow->next.id = -1;
 
     fellow->exiting = DONE_EXIT;
 
