@@ -15,7 +15,7 @@ void new_fellow(struct fellow *this) {
   this->ring_unavailable = 0;
   this->dispatch = 0;
   this->prev_flag = 0;
-  this->nw_arrival_flag = 0;
+  this->nw_arrival_flag = NO_NEW;
   this->nw_available_flag = 0;
   this->exiting = NO_EXIT;
   this->wait_connect = 0;
@@ -25,8 +25,9 @@ void new_fellow(struct fellow *this) {
   /* FIXME: set next to none */
   this->next.id = -1;
 
-  /* Init in buffer */
+  /* Init in buffers */
   this->in_buffer[0] = '\0';
+  this->aux_in_buffer[0] = '\0';
 }
 
 void create_sockets(struct fellow *fellow) {
@@ -97,6 +98,8 @@ void create_sockets(struct fellow *fellow) {
     perror("Error: listen\nDescription:");
     brute_exit(fellow);
   }
+
+  fellow->fd_new_arrival = -1;
 }
 
 void destroy_fellow(struct fellow *this) {

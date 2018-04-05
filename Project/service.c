@@ -47,11 +47,30 @@ int main(int argc, char const *argv[]) {
     if (fellow.prev_flag) {
       FD_SET(fellow.fd_prev, &rfds); max_fd = max(max_fd, fellow.fd_prev);
     }
+    if (fellow.nw_arrival_flag != NO_NEW) {
+      FD_SET(fellow.fd_new_arrival, &rfds); max_fd = max(max_fd, fellow.fd_new_arrival);
+    }
 
     counter = select(max_fd+1, &rfds, (fd_set*) NULL, (fd_set*) NULL, (struct timeval *) NULL);
     if (counter <= 0) {
       perror("Error: select\nDescription:");
       brute_exit(&fellow);
+    }
+
+    if (fellow.nw_arrival_flag != NO_NEW) {
+      /* A NEW arrival is still pending */
+
+      ret = read_aux_stream(&fellow);
+      if (ret == 0) {
+        /* NEW disconnected */
+
+        fellow.nw_arrival_flag = NO_NEW;
+        close(fellow.fd_new_arrival);
+      } else if (ret == -1) {
+        /* Invalid input message. */
+
+        brute_exit(&fellow);
+      }
     }
 
     if (fellow.prev_flag) {
@@ -68,7 +87,17 @@ int main(int argc, char const *argv[]) {
           close(fellow.fd_prev);
 
           printf("PROTOCOL: the previous disconnect TCP\n");
-        } else if (ret == 1) {
+
+          if (fellow.nw_arrival_flag == DONE_NEW) {
+            /* The NEW is promoted to previous */
+
+            new_to_prev(&fellow);
+          } else if (fellow.wait_connect != 1) {
+            /* This seems an unexpected disconnection, warn user. */
+
+            printf("WARNING: unwarned disconnect from previous. Ring seems broken\n");
+          }
+        } else if (ret == -1) {
           /* Invalid input message. */
           printf("Error: Invalid message from previous server\n");
           brute_exit(&fellow);
@@ -137,41 +166,55 @@ int main(int argc, char const *argv[]) {
       if (fellow.wait_connect == 1) {
         /* Connection remake in exit protocol. */
 
-        fellow.wait_connect = 0;
-      } else if (fellow.start == 1) {
-        /* New fellow. */
+        if (fellow.prev_flag) {
+          /* Disconnects from previous. */
 
-        fellow.nw_arrival_flag = 1;
+          if (fellow.prev_flag == 1) {
+            printf("PROTOCOL: disconnect from previous\n");
+            close(fellow.fd_prev);
+            fellow.prev_flag = 0;
+          }
+        }
+
+        fellow.wait_connect = 0;
+
+        /* Accept fellow. */
+        printf("PROTOCOL: will accept connection\n");
+        addrlen = sizeof(addr_acpt);
+
+        if ( (fellow.fd_prev = accept( fellow.fd_listen,
+            (struct sockaddr*) &addr_acpt, &addrlen) ) == -1 ) {
+          perror("Error: TCP Accept\nDescription:");
+          brute_exit(&fellow);
+        }
+        printf("PROTOCOL: accepted connection\n");
+
+        /* Mark it as listining to a fellow and clean input buffer. */
+        fellow.prev_flag = 1;
+        fellow.in_buffer[0] = '\0';
+      } else if (fellow.start == 1) {
+        /* NEW fellow. */
+
+        /* Accept NEW fellow. */
+        printf("PROTOCOL: will accept NEW connection\n");
+        addrlen = sizeof(addr_acpt);
+
+        if ( (fellow.fd_new_arrival = accept( fellow.fd_listen,
+            (struct sockaddr*) &addr_acpt, &addrlen) ) == -1 ) {
+          perror("Error: TCP Accept\nDescription:");
+          brute_exit(&fellow);
+        }
+        printf("PROTOCOL: accepted NEW connection\n");
+
+        /* Mark it as listining to a new fellow and clean aux input buffer. */
+        fellow.nw_arrival_flag = TRIG_NEW;
+        fellow.aux_in_buffer[0] = '\0';
       } else {
         /* Out of time connection. Only makes sense if this is start? */
 
         printf("Error: TCP accept out of time");
         brute_exit(&fellow);
       }
-
-      if (fellow.prev_flag) {
-        /* Disconnects from previous. */
-
-        printf("PROTOCOL: disconnect from previous\n");
-        close(fellow.fd_prev);
-
-        fellow.prev_flag = 0;
-      }
-
-      /* Accept new fellow. */
-      printf("PROTOCOL: will accept connection\n");
-      addrlen = sizeof(addr_acpt);
-
-      if ( (fellow.fd_prev = accept( fellow.fd_listen,
-           (struct sockaddr*) &addr_acpt, &addrlen) ) == -1 ) {
-        perror("Error: TCP Accept\nDescription:");
-        brute_exit(&fellow);
-      }
-      printf("PROTOCOL: accepted NEW\n");
-
-      /* Mark it as listining to a new fellow and clean input buffer. */
-      fellow.prev_flag = 1;
-      fellow.in_buffer[0] = '\0';
     }
 
     /* Check if exit state has changed */

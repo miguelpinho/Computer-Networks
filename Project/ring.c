@@ -118,16 +118,77 @@ int read_stream(struct fellow *fellow) {
 
     strcpy(msg_parse, cur);
 
-    if (fellow->nw_arrival_flag == 0) {
-      /* Parse the message. */
+    /* Parse the message. */
 
-      if (process_message(msg_parse, fellow) == 0) {
-        /* Error on tcp message protocol. */
-        printf("Error: Error on TCP message protocol");
-        return -1;
-      }
+    if (process_message(msg_parse, fellow) == 0) {
+      /* Error on tcp message protocol. */
 
-    } else {
+      printf("Error: Error on TCP message protocol");
+      return -1;
+    }
+
+    cur = ch+1;
+  }
+
+  strcpy(fellow->in_buffer, cur);
+
+  return n;
+}
+
+void parse_buffer(struct fellow *fellow) {
+  char tmp[MAX_STR], msg_parse[MAX_STR], *ch, *cur;
+
+  strcpy(tmp, fellow->in_buffer);
+
+  cur = &(tmp[0]);
+  while ((ch = strchr(cur, '\n')) != NULL) {
+    *(ch) = '\0';
+
+    strcpy(msg_parse, cur);
+
+    /* Parse the message. */
+
+    if (process_message(msg_parse, fellow) == 0) {
+      /* Error on tcp message protocol. */
+
+      printf("Error: Error on TCP message protocol");
+      return -1;
+    }
+
+    cur = ch+1;
+  }
+
+  strcpy(fellow->in_buffer, cur);
+}
+
+int read_aux_stream(struct fellow *fellow) {
+  int n;
+  char msg_in[MAX_STR], tmp[MAX_STR], msg_parse[MAX_STR], *ch, *cur;
+
+  strcpy(tmp, fellow->aux_in_buffer);
+
+  n = read(fellow->fd_new_arrival, msg_in, MAX_STR);
+
+  if (n == -1) {
+    perror("Error: read NEW TCP\nDescription");
+    return(-1);
+  } else if (n == 0) {
+    /* The previous disconnected */
+
+    return 0;
+  }
+
+  msg_in[n] = '\0';
+
+  strcat(tmp, msg_in);
+
+  cur = &(tmp[0]);
+  if (fellow->nw_available_flag == TRIG_NEW) {
+    if ((ch = strchr(cur, '\n')) != NULL) {
+      *(ch) = '\0';
+
+      strcpy(msg_parse, cur);
+
       /* Parse new arrival message. */
 
       if (message_nw_arrival(msg_parse, fellow) == 0) {
@@ -135,12 +196,12 @@ int read_stream(struct fellow *fellow) {
         printf("Error: Error on TCP message protocol");
         return -1;
       }
-    }
-
-    cur = ch+1;
+      
+      cur = ch+1;
+    }  
   }
 
-  strcpy(fellow->in_buffer, cur);
+  strcpy(fellow->aux_in_buffer, cur);
 
   return n;
 }
@@ -351,24 +412,45 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
       brute_exit(fellow);
     }
 
-    if (fellow->ring_unavailable == 1) {
-      send_token('I', fellow, fellow->id, 0, 0, 0);
-    }
-
     printf("PROTOCOL: START connected to NEW\n");
 
+    new_to_prev(fellow);
   } else {
     /* There are more fellows in the ring. Pass token to warn tail. */
     send_token('N', fellow, fellow->id, id_new, ip_new, tpt_new);
 
-    if (fellow->ring_unavailable == 1) {
-      send_token('I', fellow, fellow->id, 0, 0, 0);
-    }
-    /* TODO: Do not wait for desconnection from tail */
+    /* The next messages will only be stored in buffer and not processed */
+    fellow->nw_arrival_flag = DONE_NEW;
   }
 
-  fellow->nw_arrival_flag = 0;
+}
 
+void new_to_prev(struct fellow *fellow) {
+  /* End of nw_arrival state */
+  fellow->nw_arrival_flag = NO_NEW;
+
+  /* Swap buffers */
+  fellow->in_buffer[0] = '\0';
+  strcpy(fellow->in_buffer, fellow->aux_in_buffer);
+
+  /* Swap sockets */
+  fellow->fd_prev = fellow->fd_new_arrival;
+  fellow->fd_new_arrival = -1;
+
+  fellow->prev_flag = 1;
+
+  printf("PROTOCOL: NEW is the new previous\n");
+
+  if (fellow->ring_unavailable == 1) {
+    /* Needs to warn new ring is unavailable */
+    
+    send_token('I', &fellow, fellow->id, 0, 0, 0);
+  
+    printf("PROTOCOL: Warned NEW ring is unavailable");
+  }
+
+  /* Process messages stored in buffer? */
+  parse_buffer(fellow->in_buffer);
 }
 
 /* Receives token new */

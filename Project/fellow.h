@@ -23,6 +23,7 @@
 #define MAX_IP 20
 #define N_CHANCES 3
 
+enum new_type {NO_NEW, TRIG_NEW, DONE_NEW};
 enum exit_type {NO_EXIT, TRIG_EXIT, DONE_EXIT};
 
 /* next server in the fellowship ring */
@@ -49,6 +50,7 @@ struct fellow {
   /* sockets */
   int fd_central, fd_service;
   int fd_listen, fd_prev;
+  int fd_new_arrival;
 
   /* next */
   struct next_fellow next;
@@ -58,7 +60,7 @@ struct fellow {
   char ip[MAX_IP], csip[MAX_IP];
 
   /* in buffer */
-  char in_buffer[MAX_STR];
+  char in_buffer[MAX_STR], aux_in_buffer[MAX_STR];
 
   struct sockaddr_in addr_client;
 };
