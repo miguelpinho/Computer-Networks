@@ -25,6 +25,7 @@ void serve_client(struct fellow *fellow);
 
 int main(int argc, char const *argv[]) {
   int sel_in, exit_f = 0, exit_delay = 0, max_fd = 0;
+  int fd_tmp;
   int counter, ret, nrecv;
   fd_set rfds;
   struct fellow fellow;
@@ -82,7 +83,8 @@ int main(int argc, char const *argv[]) {
           } else if (fellow.wait_connect != 1) {
             /* This seems an unexpected disconnection, warn user. */
 
-            printf("WARNING: unwarned disconnect from previous. Ring seems broken\n");
+            printf("WARNING: unwarned disconnect from previous. Ring seems broken. Disconnecting graciously\n");
+            brute_exit(&fellow);
           }
         } else if (ret == -1) {
           /* Invalid input message. */
@@ -216,20 +218,35 @@ int main(int argc, char const *argv[]) {
       } else if (fellow.start == 1) {
         /* NEW fellow. */
 
-        /* Accept NEW fellow. */
-        printf("PROTOCOL: will accept NEW connection\n");
-        addrlen = sizeof(addr_acpt);
+        if (fellow.nw_arrival_flag == NO_NEW) {
+          /* Accept NEW fellow. */
+          printf("PROTOCOL: will accept NEW connection\n");
+          addrlen = sizeof(addr_acpt);
 
-        if ( (fellow.fd_new_arrival = accept( fellow.fd_listen,
-            (struct sockaddr*) &addr_acpt, &addrlen) ) == -1 ) {
-          perror("Error: TCP Accept\nDescription:");
-          brute_exit(&fellow);
+          if ( (fellow.fd_new_arrival = accept( fellow.fd_listen,
+              (struct sockaddr*) &addr_acpt, &addrlen) ) == -1 ) {
+            perror("Error: TCP Accept\nDescription:");
+            brute_exit(&fellow);
+          }
+          printf("PROTOCOL: accepted NEW connection\n");
+
+          /* Mark it as listining to a new fellow and clean aux input buffer. */
+          fellow.nw_arrival_flag = TRIG_NEW;
+          fellow.aux_in_buffer[0] = '\0';
+        } else {
+          /* Already accepting a new fellow, reject this one. */
+          printf("WARNING: a NEW server was trying to connect, but was rejected because there is already one waiting\n");
+
+          if ( (fd_tmp = accept( fellow.fd_listen,
+              (struct sockaddr*) &addr_acpt, &addrlen) ) == -1 ) {
+            perror("Error: TCP Accept\nDescription:");
+            brute_exit(&fellow);
+          }
+          
+          close(fd_tmp);
         }
-        printf("PROTOCOL: accepted NEW connection\n");
 
-        /* Mark it as listining to a new fellow and clean aux input buffer. */
-        fellow.nw_arrival_flag = TRIG_NEW;
-        fellow.aux_in_buffer[0] = '\0';
+        
       } else {
         /* Out of time connection. Only makes sense if this is start? */
 
