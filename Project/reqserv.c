@@ -82,7 +82,17 @@ int main(int argc, char const *argv[])
     }
 
 		if (FD_ISSET(fd_udp, &rfds)) {
-      /* TODO: ignorar mensagem fora de tempo */
+
+      addrlen = sizeof(addr_central);
+
+      nrecv = recvfrom( fd_udp, msg_in, MAX_STR, 0,
+                        (struct sockaddr*) &(addr_central), &addrlen );
+      if( nrecv == -1 ) {
+        perror("Error: Receive from central\nDescription:");
+        exit(1);
+      }
+
+      printf("Warning: Received out of time message - %s", msg_in);
 
     }
 

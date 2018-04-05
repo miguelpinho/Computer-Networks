@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <signal.h>
 #include "fellow.h"
 #include "ring.h"
 
@@ -22,13 +23,16 @@ void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, in
 int parse_user_input(int *service);
 void serve_client(struct fellow *fellow);
 
+
 int main(int argc, char const *argv[]) {
   int sel_in, exit_f = 0, exit_delay = 0, max_fd = 0;
-  int counter, ret;
+  int counter, ret, nrecv;
   fd_set rfds;
   struct fellow fellow;
   struct sockaddr addr_acpt;
-  socklen_t addrlen = sizeof(addr_acpt);
+  struct sockaddr_in addr_central;
+  socklen_t addrlen = sizeof(addr_acpt), addrlen_c;
+  char msg_in[MAX_STR];
 
   new_fellow(&fellow);
 
@@ -109,7 +113,23 @@ int main(int argc, char const *argv[]) {
     }
 
     if (FD_ISSET(fellow.fd_central, &rfds)) {
-      /* TODO: ignorar mensagem fora de tempo */
+      /* Ignore out of time messages from central server*/
+
+      memset((void*) &(addr_central), (int) '\0', sizeof(addr_central));
+    	addr_central.sin_family = AF_INET;
+    	addr_central.sin_addr.s_addr = inet_addr(fellow.csip);
+    	addr_central.sin_port = htons(fellow.cspt);
+
+      addrlen_c = sizeof(addr_central);
+
+      nrecv = recvfrom( fellow.fd_central, msg_in, MAX_STR, 0,
+                        (struct sockaddr*) &(addr_central), &addrlen_c );
+      if( nrecv == -1 ) {
+        perror("Error: Receive from central\nDescription:");
+        brute_exit(&fellow);
+      }
+
+      printf("Warning: Received out of time message - %s", msg_in);
 
     }
 
