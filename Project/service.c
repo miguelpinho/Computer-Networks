@@ -23,7 +23,6 @@ void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, in
 int parse_user_input(int *service);
 void serve_client(struct fellow *fellow);
 
-
 int main(int argc, char const *argv[]) {
   int sel_in, exit_f = 0, exit_delay = 0, max_fd = 0;
   int counter, ret, nrecv;
@@ -274,7 +273,7 @@ void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, in
 
     arg_read = sscanf(argv[i],"-%c", &ident);
     if (arg_read != 1) {
-      printf("Error: Invalid argument\n");
+      printf("Error: Invalid argument. Usage: %s\n", USAGE);
       exit(1);
     }
 
@@ -282,7 +281,7 @@ void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, in
       case 'n' :
         arg_read = sscanf(argv[i+1],"%d", id);
         if (arg_read != 1) {
-          printf("Error: Invalid argument\n");
+          printf("Error: Invalid argument. Usage: %s\n", USAGE);
           exit(1);
         }
         break;
@@ -292,14 +291,14 @@ void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, in
       case 'u' :
         arg_read = sscanf(argv[i+1],"%d", upt);
         if (arg_read != 1) {
-          printf("Error: Invalid argument\n");
+          printf("Error: Invalid argument. Usage: %s\n", USAGE);
           exit(1);
         }
         break;
       case 't' :
         arg_read = sscanf(argv[i+1],"%d", tpt);
         if (arg_read != 1) {
-          printf("Error: Invalid argument\n");
+          printf("Error: Invalid argument. Usage: %s\n", USAGE);
           exit(1);
         }
         break;
@@ -310,13 +309,13 @@ void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, in
       case 'p' :
         arg_read = sscanf(argv[i+1],"%d", cspt);
         if (arg_read != 1) {
-          printf("Error: Invalid argument\n");
+          printf("Error: Invalid argument. Usage: %s\n", USAGE);
           exit(1);
         }
         csp = 1;
         break;
       default:
-        printf("Error: Argument not known\n");
+        printf("Error: Argument not known. Usage: %s\n", USAGE);
         exit(1);
     }
   }
