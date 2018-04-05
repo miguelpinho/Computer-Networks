@@ -72,6 +72,7 @@ void show_state(struct fellow *fellow);
 void register_cs(char *reply, struct fellow *fellow);
 void set_cs(char *query, struct fellow *fellow, int pt);
 void withdraw_cs(char *query, struct fellow *fellow);
-
+void brute_exit(struct fellow *fellow);
+void stop_service(struct fellow *fellow);
 
 #endif

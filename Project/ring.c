@@ -124,7 +124,7 @@ int read_stream(struct fellow *fellow) {
       /* Error on tcp message protocol. */
 
       printf("Error: Error on TCP message protocol");
-      return -1;
+      brute_exit(fellow);
     }
 
     cur = ch+1;
@@ -152,7 +152,7 @@ void parse_buffer(struct fellow *fellow) {
       /* Error on tcp message protocol. */
 
       printf("Error: Error on TCP message protocol");
-      return -1;
+      brute_exit(fellow);
     }
 
     cur = ch+1;
@@ -196,9 +196,9 @@ int read_aux_stream(struct fellow *fellow) {
         printf("Error: Error on TCP message protocol");
         return -1;
       }
-      
+
       cur = ch+1;
-    }  
+    }
   }
 
   strcpy(fellow->aux_in_buffer, cur);
@@ -443,14 +443,14 @@ void new_to_prev(struct fellow *fellow) {
 
   if (fellow->ring_unavailable == 1) {
     /* Needs to warn new ring is unavailable */
-    
-    send_token('I', &fellow, fellow->id, 0, 0, 0);
-  
+
+    send_token('I', fellow, fellow->id, 0, 0, 0);
+
     printf("PROTOCOL: Warned NEW ring is unavailable");
   }
 
   /* Process messages stored in buffer? */
-  parse_buffer(fellow->in_buffer);
+  parse_buffer(fellow);
 }
 
 /* Receives token new */
@@ -533,8 +533,8 @@ int trigger_exit_ring(struct fellow *fellow) {
     return 0;
   } else {
     /* Check if it is locked in the dispactch inheritance protocol */
-    /* Before it can leave that has to be solved */ 
-    if (fellow->nw_available_flag != 1) { 
+    /* Before it can leave that has to be solved */
+    if (fellow->nw_available_flag != 1) {
       /* Can proceed with exit protocol. */
 
       launch_exit_ring(fellow);
@@ -794,7 +794,7 @@ void token_available( struct fellow *fellow, int id_sender) {
 
     if (fellow->exiting != NO_EXIT) {
       /* Is in exit, lose dispatch status it has just gained */
-    
+
       become_unavailable(fellow);
     }
   } else if (fellow->dispatch == 0) {
@@ -879,40 +879,4 @@ void regist_on_central(struct fellow *fellow) {
       join_ring(fellow, tpt_start, ip_start, id_start);
     }
   }
-}
-
-void stop_service(struct fellow *fellow) {
-  char msg_out[MAX_STR];
-  int ret;
-  socklen_t addrlen = sizeof(fellow->addr_client);
-
-  fellow->available = 0;
-
-  sprintf(msg_out, "YOUR_SERVICE OFF");
-  ret = sendto( fellow->fd_service, msg_out, strlen(msg_out), 0,
-                (struct sockaddr*) &(fellow->addr_client), addrlen );
-  if (ret==-1) {
-    perror("Error: Sending to client\nDescription:");
-  }
-}
-
-void brute_exit(struct fellow *fellow) {
-  if (fellow->dispatch == 1) {
-    withdraw_cs("WITHDRAW_DS", fellow);
-    fellow->dispatch = 0;
-  }
-
-  if (fellow->start == 1) {
-    withdraw_cs("WITHDRAW_START", fellow);
-    fellow->start = 0;
-  }
-
-  if (fellow->available == 0) {
-    stop_service(fellow);
-    fellow->available = -1;
-  }
-
-  destroy_fellow(fellow);
-
-  exit(1);
 }

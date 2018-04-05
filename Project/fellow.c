@@ -311,3 +311,39 @@ void withdraw_cs(char *query, struct fellow *fellow) {
   msg_in[nrecv] = '\0';
   printf("%s\n", msg_in);
 }
+
+void stop_service(struct fellow *fellow) {
+  char msg_out[MAX_STR];
+  int ret;
+  socklen_t addrlen = sizeof(fellow->addr_client);
+
+  fellow->available = 0;
+
+  sprintf(msg_out, "YOUR_SERVICE OFF");
+  ret = sendto( fellow->fd_service, msg_out, strlen(msg_out), 0,
+                (struct sockaddr*) &(fellow->addr_client), addrlen );
+  if (ret==-1) {
+    perror("Error: Sending to client\nDescription:");
+  }
+}
+
+void brute_exit(struct fellow *fellow) {
+  if (fellow->dispatch == 1) {
+    withdraw_cs("WITHDRAW_DS", fellow);
+    fellow->dispatch = 0;
+  }
+
+  if (fellow->start == 1) {
+    withdraw_cs("WITHDRAW_START", fellow);
+    fellow->start = 0;
+  }
+
+  if (fellow->available == 0) {
+    stop_service(fellow);
+    fellow->available = -1;
+  }
+
+  destroy_fellow(fellow);
+
+  exit(1);
+}

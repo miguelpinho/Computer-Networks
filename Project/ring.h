@@ -25,6 +25,7 @@ void send_token(char token_type, struct fellow *fellow, int id, int id2, char *i
 void send_new(struct fellow *fellow);
 void send_new_start(struct fellow *fellow);
 int read_stream(struct fellow *fellow);
+int read_aux_stream(struct fellow *fellow);
 int process_message (char *msg, struct fellow *fellow);
 int message_nw_arrival (char *msg, struct fellow *fellow);
 
@@ -41,8 +42,7 @@ void token_transfer( struct fellow *fellow, int id_sender);
 void token_unavailable( struct fellow *fellow, int id_sender);
 void become_available( struct fellow *fellow);
 void token_available( struct fellow *fellow, int id_sender);
-void brute_exit(struct fellow *fellow);
-void stop_service(struct fellow *fellow);
+void new_to_prev(struct fellow *fellow);
 
 
 void regist_on_central(struct fellow *fellow);
