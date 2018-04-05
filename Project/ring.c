@@ -183,7 +183,7 @@ int read_aux_stream(struct fellow *fellow) {
   strcat(tmp, msg_in);
 
   cur = &(tmp[0]);
-  if (fellow->nw_available_flag == TRIG_NEW) {
+  if (fellow->nw_arrival_flag == TRIG_NEW) {
     if ((ch = strchr(cur, '\n')) != NULL) {
       *(ch) = '\0';
 

@@ -119,9 +119,15 @@ void destroy_fellow(struct fellow *this) {
 void show_state(struct fellow *fellow) {
 
   if (fellow->service == -1) {
-    printf("Ring not associated with any service\n");
+    printf("This server is not associated with any service ring\n");
   } else {
     printf("Service state (id = %d): \n", fellow->id);
+    if (fellow->start == 1) {
+      printf("\tThis is the START server\n");
+    }
+    if (fellow->dispatch == 1) {
+      printf("\tThis is the DISPATCH server\n");
+    }
     printf("\tThis: %s\n", (fellow->available == 1)?"Available":"Unavailable");
     printf("\tRing: %s\n", (fellow->ring_unavailable == 0)?"Available":"Unavailable");
     printf("\tNext: id = %d\n", fellow->next.id);

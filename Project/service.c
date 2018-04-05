@@ -57,22 +57,6 @@ int main(int argc, char const *argv[]) {
       brute_exit(&fellow);
     }
 
-    if (fellow.nw_arrival_flag != NO_NEW) {
-      /* A NEW arrival is still pending */
-
-      ret = read_aux_stream(&fellow);
-      if (ret == 0) {
-        /* NEW disconnected */
-
-        fellow.nw_arrival_flag = NO_NEW;
-        close(fellow.fd_new_arrival);
-      } else if (ret == -1) {
-        /* Invalid input message. */
-
-        brute_exit(&fellow);
-      }
-    }
-
     if (fellow.prev_flag) {
       /* There is a previous. */
 
@@ -104,6 +88,24 @@ int main(int argc, char const *argv[]) {
         }
       }
 
+    }
+
+    if (fellow.nw_arrival_flag != NO_NEW) {
+      /* A NEW arrival is still pending */
+
+      if (FD_ISSET(fellow.fd_new_arrival, &rfds)) {
+        ret = read_aux_stream(&fellow);
+        if (ret == 0) {
+          /* NEW disconnected */
+
+          fellow.nw_arrival_flag = NO_NEW;
+          close(fellow.fd_new_arrival);
+        } else if (ret == -1) {
+          /* Invalid input message. */
+
+          brute_exit(&fellow);
+        }
+      }
     }
 
     if (FD_ISSET(fellow.fd_central, &rfds)) {
@@ -394,8 +396,6 @@ void serve_client(struct fellow *fellow) {
     perror("Error: Receive from client\nDescription:");
     brute_exit(fellow);
   }
-
-
 
   msg_in[nread] = '\0';
 
