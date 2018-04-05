@@ -450,9 +450,13 @@ int trigger_exit_ring(struct fellow *fellow) {
 
     return 0;
   } else {
-    /* Can proceed with exit protocol. */
+    /* Check if it is locked in the dispactch inheritance protocol */
+    /* Before it can leave that has to be solved */ 
+    if (fellow->nw_available_flag != 1) { 
+      /* Can proceed with exit protocol. */
 
-    launch_exit_ring(fellow);
+      launch_exit_ring(fellow);
+    }
   }
 
   return 1;
@@ -630,7 +634,7 @@ void token_search(struct fellow *fellow, int id_sender) {
 void token_transfer( struct fellow *fellow, int id_sender) {
   fellow->nw_available_flag = 0;
 
-/* Check if it arrived the sender of the token S */
+  /* Check if it arrived the sender of the token S */
   if ( fellow->id != id_sender) {
 
     /* Send token T to the next*/
@@ -701,13 +705,38 @@ void token_available( struct fellow *fellow, int id_sender) {
   if (fellow->id == id_sender) {
     fellow->ring_unavailable = 0;
     fellow->nw_available_flag = 0;
+
+    /* Can become new dispatch */
     fellow->dispatch = 1;
     set_cs("SET_DS", fellow, fellow->upt);
-  } else if ((fellow->nw_available_flag == 0 || id_sender < fellow->id) && fellow->dispatch == 0) {
-      /* If 2 or more suddenly became available, just passes the token D if the id is minor than his own */
 
-      fellow->nw_available_flag = 0;
+    if (fellow->exiting != NO_EXIT) {
+      /* Is in exit, lose dispatch status it has just gained */
+    
+      become_unavailable(fellow);
+    }
+  } else if (fellow->dispatch == 0) {
+    /* Only considers token D if it is not the dispatch */
+
+    if (fellow->nw_available_flag == 0) {
+      /* Just pass the D token */
+
       send_token('D', fellow, id_sender, 0, 0, 0);
+    } else {
+      /* This one is also waiting for its D token */
+
+      if (id_sender < fellow->id) {
+        /* This D has advantage, pass it */
+        send_token('D', fellow, id_sender, 0, 0, 0);
+
+        /* Clean new available state and continue exit if that is the case */
+        fellow->nw_available_flag = 0;
+
+        if (fellow->exiting == TRIG_EXIT) {
+          launch_exit_ring(fellow);
+        }
+      }
+    }
   }
 }
 
