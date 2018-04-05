@@ -210,7 +210,7 @@ int parse_user_input(int *service) {
 			arg_read = sscanf(buffer, "%*s %d%n", service, &char_read);
 			if (arg_read != 1) {
 	      /*Argument not read*/
-	      printf("Error: Invalid message");
+	      printf("Error: Invalid message - %s", buffer);
 	      exit(1);
 	    }
 			return IN_RS;
@@ -254,10 +254,11 @@ void request_service(int *service, int fd_udp, int fd_udp_serv, struct sockaddr_
 	  }
 	  *addrlen = sizeof(addr_central);
 
-		nrecv = recvfrom(fd_udp_serv, msg_in, 128, 0, (struct sockaddr*)&addr_service, addrlen);
+		nrecv = recvfrom(fd_udp, msg_in, 128, 0, (struct sockaddr*)&addr_central, addrlen);
 
 		if( nrecv == -1 ) {
 	    perror("Error: Receive from Central\nDescription:");
+			count++;
 			continue;
 	  }
 
@@ -267,20 +268,22 @@ void request_service(int *service, int fd_udp, int fd_udp_serv, struct sockaddr_
 	  arg_read = sscanf(msg_in, "%s %d;%s%n", msg_type, id, msg_data, &char_read);
 		if (arg_read != 3) {
 			/*Argument not read*/
-			printf("Error: Invalid message");
-			exit(1);
+			printf("Error: Invalid message - %s", msg_in);
+			count++;
+			continue;
 		}
 		if (char_read != strlen(msg_in)) {
 			printf("Error: Not every character was read");
-			exit(1);
+			count++;
+			continue;
 		}
-
+		/* Checking if the received message is correct */
 	  if (strcmp(msg_type, "OK") != 0) {
-	    printf("Erro: msg\n");
+			count++;
+			continue;
 	  } else {
 			c_msg = 1;
 		}
-		count++;
 	}
 
 	if (c_msg == 0 || nrecv == -1) {
@@ -290,11 +293,10 @@ void request_service(int *service, int fd_udp, int fd_udp_serv, struct sockaddr_
 
   /* Service found */
   if (strcmp(msg_data, "0.0.0.0;0") != 0 && *id != 0) {
-
 		arg_read = sscanf(msg_data, "%[^;];%d%n", ip, upt, &char_read);
 		if (arg_read != 2) {
       /*Argument not read*/
-      printf("Error: Invalid message");
+      printf("Error: Invalid message - %s", msg_in);
       exit(1);
     }
     if (char_read != strlen(msg_data)) {
@@ -310,14 +312,16 @@ void request_service(int *service, int fd_udp, int fd_udp_serv, struct sockaddr_
     sprintf(msg_out, "MY_SERVICE ON");
     nsend = sendto(fd_udp_serv, msg_out, strlen(msg_out), 0, (struct sockaddr*)addr_service, sizeof(*addr_service));
     if( nsend == -1 ) {
-      printf("Error: send");
+      perror("Error: send");
       exit(1); /*error*/
     }
     *addrlen = sizeof(*addr_service);
 
 		nrecv = recvfrom(fd_udp_serv, msg_in, 128, 0, (struct sockaddr*)addr_service, addrlen);
   	if( nrecv == -1 ) {
-        printf("Error: recv");
+			/* When there is an error terminating the service */
+				terminate_service(fd_udp_serv, *addr_service, addrlen);
+        perror("Error: recv");
         exit(1); /*error*/
     }
 

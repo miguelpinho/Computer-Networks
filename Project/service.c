@@ -37,10 +37,6 @@ int main(int argc, char const *argv[]) {
 
   create_sockets(&fellow);
 
-  /*
-  printf("dummy: %d %s %d %d %s %d\n", id, ip, upt, tpt, csip, cspt);
-  */
-
   while (exit_f == 0) {
     /* Prepare select, to monitor stdin and the sockets */
     FD_ZERO(&rfds);

@@ -308,17 +308,3 @@ void withdraw_cs(char *query, struct fellow *fellow) {
   msg_in[nrecv] = '\0';
   printf("%s\n", msg_in);
 }
-
-void brute_exit(struct fellow *fellow) {
-  if (fellow->dispatch == 1) {
-    withdraw_cs("WITHDRAW_DS", fellow);
-  }
-
-  if (fellow->start == 1) {
-    withdraw_cs("WITHDRAW_START", fellow);
-  }
-
-  destroy_fellow(fellow);
-
-  exit(1);
-}

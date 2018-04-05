@@ -41,6 +41,8 @@ void token_transfer( struct fellow *fellow, int id_sender);
 void token_unavailable( struct fellow *fellow, int id_sender);
 void become_available( struct fellow *fellow);
 void token_available( struct fellow *fellow, int id_sender);
+void brute_exit(struct fellow *fellow);
+void stop_service(struct fellow *fellow);
 
 
 void regist_on_central(struct fellow *fellow);

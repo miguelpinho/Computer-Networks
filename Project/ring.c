@@ -23,7 +23,7 @@ void send_token(char token_type, struct fellow *fellow, int id, int id2, char *i
       sprintf(msg_out, "TOKEN %d;%c;%d;%s;%d\n", id, token_type, id2, ip, tpt);
       break;
     default:
-      printf("Error: Token type not known\n");
+      printf("Error: Token type not known - %c\n", token_type);
       return;
       break;
   }
@@ -36,7 +36,7 @@ void send_token(char token_type, struct fellow *fellow, int id, int id2, char *i
 	while(nleft > 0) {
 		nwritten = write(fellow->next.fd_next, ptr, nleft);
 		if (nwritten <= 0) {
-      perror("Error: Invalid write sending token\nDescription: ");
+      perror("Error: Invalid write sending token\nDescription");
       brute_exit(fellow);
     }
 
@@ -100,7 +100,7 @@ int read_stream(struct fellow *fellow) {
   n = read(fellow->fd_prev, msg_in, MAX_STR);
 
   if (n == -1) {
-    perror("Error: read TCP\nDescription: ");
+    perror("Error: read TCP\nDescription");
     brute_exit(fellow);
   } else if (n == 0) {
     /* The previous disconnected */
@@ -347,7 +347,7 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
 
     n = connect(fellow->next.fd_next, (struct sockaddr*) &addr_new, sizeof(addr_new));
     if (n==-1) {
-      perror("Error: failed to connect to NEW\nDescription: ");
+      perror("Error: failed to connect to NEW\nDescription");
       brute_exit(fellow);
     }
 
@@ -416,19 +416,10 @@ void token_new(struct fellow *fellow, int id_start, int id_new, char *ip_new, in
 
 /* User input exit */
 int trigger_exit_ring(struct fellow *fellow) {
-  char msg_out[MAX_STR];
-  socklen_t addrlen = sizeof(fellow->addr_client);
-  int ret;
 
   /* If this server is providing a service it ends it before exiting */
   if (fellow->available == 0) {
-    sprintf(msg_out, "YOUR_SERVICE OFF");
-    ret = sendto( fellow->fd_service, msg_out, strlen(msg_out), 0,
-                  (struct sockaddr*) &(fellow->addr_client), addrlen );
-    if (ret==-1) {
-      perror("Error: Sending to client\nDescription:");
-      brute_exit(fellow);
-    }
+    stop_service(fellow);
   }
 
   if (fellow ->next.id == -1) {
@@ -763,7 +754,7 @@ void regist_on_central(struct fellow *fellow) {
       arg_read = sscanf(msg_data, "%*d;%d;%[^; ];%d%n", &id_start, ip_start, &tpt_start, &char_read);
       if (arg_read != 3) {
 	      /*Argument not read*/
-	      printf("Error: Invalid message");
+	     printf("Error: Invalid message: \"%s\"", msg_data);
 	      brute_exit(fellow);
 	    }
 	    if (char_read != strlen(msg_data)) {
@@ -777,4 +768,40 @@ void regist_on_central(struct fellow *fellow) {
       join_ring(fellow, tpt_start, ip_start, id_start);
     }
   }
+}
+
+void stop_service(struct fellow *fellow) {
+  char msg_out[MAX_STR];
+  int ret;
+  socklen_t addrlen = sizeof(fellow->addr_client);
+
+  fellow->available = 0;
+
+  sprintf(msg_out, "YOUR_SERVICE OFF");
+  ret = sendto( fellow->fd_service, msg_out, strlen(msg_out), 0,
+                (struct sockaddr*) &(fellow->addr_client), addrlen );
+  if (ret==-1) {
+    perror("Error: Sending to client\nDescription:");
+  }
+}
+
+void brute_exit(struct fellow *fellow) {
+  if (fellow->dispatch == 1) {
+    withdraw_cs("WITHDRAW_DS", fellow);
+    fellow->dispatch = 0;
+  }
+
+  if (fellow->start == 1) {
+    withdraw_cs("WITHDRAW_START", fellow);
+    fellow->start = 0;
+  }
+
+  if (fellow->available == 0) {
+    stop_service(fellow);
+    fellow->available = -1;
+  }
+
+  destroy_fellow(fellow);
+
+  exit(1);
 }
