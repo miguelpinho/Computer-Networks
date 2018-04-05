@@ -30,8 +30,6 @@ void send_token(char token_type, struct fellow *fellow, int id, int id2, char *i
 
 	ptr = &msg_out[0];
 
-  printf("PROTOCOL: Will send token %c\n", token_type);
-
 	nleft = strlen(msg_out);
 	while(nleft > 0) {
 		nwritten = write(fellow->next.fd_next, ptr, nleft);
@@ -53,8 +51,6 @@ void send_new(struct fellow *fellow) {
 
   ptr = &msg_out[0];
 
-  printf("PROTOCOL: Will send NEW\n");
-
   nleft = strlen(msg_out);
 	while(nleft > 0) {
 		nwritten = write(fellow->next.fd_next, ptr, nleft);
@@ -75,8 +71,6 @@ void send_new_start(struct fellow *fellow) {
   sprintf(msg_out, "NEW_START\n");
 
   ptr = &msg_out[0];
-
-  printf("PROTOCOL: Will send NEW_START\n");
 
   nleft = strlen(msg_out);
 	while(nleft > 0) {
@@ -211,8 +205,6 @@ int process_message (char *msg, struct fellow *fellow) {
   char msg_type[MAX_STR], token_type, ip[MAX_STR];
   int id, tpt, id2, arg_read, char_read;
 
-  printf("TCP_MSG: \"%s\"\n", msg);
-
   arg_read = sscanf(msg, "%s", msg_type);
   if (arg_read != 1) {
     /*Argument not read*/
@@ -289,8 +281,6 @@ int message_nw_arrival (char *msg, struct fellow *fellow) {
   char msg_data[MAX_STR], msg_type[MAX_STR], ip[MAX_STR];
   int id, tpt, arg_read, char_read;
 
-  printf("TCP_MSG: \"%s\"\n", msg);
-
   arg_read = sscanf(msg, "%s %s%n", msg_type, msg_data, &char_read);
   if (arg_read != 2) {
     /*Argument not read*/
@@ -352,20 +342,14 @@ void join_ring(struct fellow *fellow , int tpt_start , char *ip_start, int id_st
   addr_next.sin_addr.s_addr = inet_addr(ip_start);
   addr_next.sin_port = htons(tpt_start);
 
-  printf("PROTOCOL: will connect to START\n");
-
   n = connect(fellow->next.fd_next, (struct sockaddr*) &addr_next, sizeof(addr_next));
 	if (n == -1) {
     perror("Error: TCP Connect\nDescription:");
     brute_exit(fellow);
   }
 
-  printf("PROTOCOL: connected to START\n");
-
   /* Communicate to start it wants to enter the ring. */
   send_new(fellow);
-
-  printf("PROTOCOL: will accept connection\n");
 
   /* wait for connection */
   addrlen = sizeof(addr);
@@ -376,8 +360,6 @@ void join_ring(struct fellow *fellow , int tpt_start , char *ip_start, int id_st
 
   fellow->prev_flag = 1;
   fellow->in_buffer[0] = '\0';
-
-  printf("PROTOCOL: accepted connection\n");
 }
 
 void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_new, int id_start) {
@@ -404,15 +386,11 @@ void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_n
 
     sleep(1);
 
-    printf("PROTOCOL: START will connect to NEW\n");
-
     n = connect(fellow->next.fd_next, (struct sockaddr*) &addr_new, sizeof(addr_new));
     if (n==-1) {
       perror("Error: failed to connect to NEW\nDescription");
       brute_exit(fellow);
     }
-
-    printf("PROTOCOL: START connected to NEW\n");
 
     new_to_prev(fellow);
   } else {
@@ -439,14 +417,10 @@ void new_to_prev(struct fellow *fellow) {
 
   fellow->prev_flag = 1;
 
-  printf("PROTOCOL: NEW is the new previous\n");
-
   if (fellow->ring_unavailable == 1) {
     /* Needs to warn new ring is unavailable */
 
     send_token('I', fellow, fellow->id, 0, 0, 0);
-
-    printf("PROTOCOL: Warned NEW ring is unavailable");
   }
 
   /* Process messages stored in buffer? */
@@ -586,8 +560,6 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
 
     if (fellow->exiting == NO_EXIT) {
       /* Something is wrong. */
-
-      printf("PROTOCOL: received O from itself when not in exit protocol\n");
     }
 
     close(fellow->fd_prev);

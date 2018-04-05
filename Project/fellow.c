@@ -171,7 +171,6 @@ void register_cs(char *reply, struct fellow *fellow) {
     }
 
     msg_in[nrecv] = '\0';
-    printf("%s\n", msg_in);
 
     arg_read = sscanf(msg_in, "%s", verifier);
     if (arg_read != 1) {
@@ -200,7 +199,7 @@ void register_cs(char *reply, struct fellow *fellow) {
 }
 
 void set_cs(char *query, struct fellow *fellow, int pt) {
-  char msg_out[MAX_STR], msg_in[MAX_STR], verifier[MAX_STR];
+  char msg_out[MAX_STR], msg_in[MAX_STR], msg_data[MAX_STR], verifier[MAX_STR];
   int nsend, nrecv, arg_read, c_msg = 0, count = 0;
   struct sockaddr_in addr_central;
   socklen_t addrlen;
@@ -234,8 +233,8 @@ void set_cs(char *query, struct fellow *fellow, int pt) {
     }
 
     /* Check if message is OK */
-    arg_read = sscanf(msg_in, "%s", verifier);
-    if (arg_read != 1) {
+    arg_read = sscanf(msg_in, "%s %s", verifier, msg_data);
+    if (arg_read != 2) {
       printf("Error: Invalid message - %s", msg_in);
       count++;
       continue;
@@ -256,7 +255,13 @@ void set_cs(char *query, struct fellow *fellow, int pt) {
   }
 
   msg_in[nrecv] = '\0';
-  printf("%s\n", msg_in);
+
+  /* Something went wrong, trying to set start or ds when there was already one */
+  if (strcmp(msg_data, "0;0.0.0.0;0") == 0)
+  {
+    printf("Error: There is already one server in that position (Start/Dispatch)\n");
+    brute_exit(fellow);
+  }
 
 }
 
@@ -315,7 +320,6 @@ void withdraw_cs(char *query, struct fellow *fellow) {
   }
 
   msg_in[nrecv] = '\0';
-  printf("%s\n", msg_in);
 }
 
 void stop_service(struct fellow *fellow) {

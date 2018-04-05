@@ -22,6 +22,7 @@ enum input_type {IN_ERROR, IN_JOIN, IN_NO_JOIN, IN_STATE, IN_LEAVE, IN_NO_LEAVE,
 void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt);
 int parse_user_input(int *service);
 void serve_client(struct fellow *fellow);
+void intHandler(int);
 
 int main(int argc, char const *argv[]) {
   int sel_in, exit_f = 0, exit_delay = 0, max_fd = 0;
@@ -34,6 +35,7 @@ int main(int argc, char const *argv[]) {
   socklen_t addrlen = sizeof(addr_acpt), addrlen_c;
   char msg_in[MAX_STR];
 
+  signal(SIGINT, intHandler);
   new_fellow(&fellow);
 
   get_arguments(argc, argv, &(fellow.id), fellow.ip, &(fellow.upt),
@@ -73,8 +75,6 @@ int main(int argc, char const *argv[]) {
           /* The previous disconnected */
           fellow.prev_flag = 0;
           close(fellow.fd_prev);
-
-          printf("PROTOCOL: the previous disconnect TCP\n");
 
           if (fellow.nw_arrival_flag == DONE_NEW) {
             /* The NEW is promoted to previous */
@@ -179,7 +179,6 @@ int main(int argc, char const *argv[]) {
 
     if (FD_ISSET(fellow.fd_service, &rfds)) {
       /* Respond to a client request. */
-      printf("CLIENT: Detected communication with client\n");
       serve_client(&fellow);
     }
 
@@ -193,7 +192,6 @@ int main(int argc, char const *argv[]) {
           /* Disconnects from previous. */
 
           if (fellow.prev_flag == 1) {
-            printf("PROTOCOL: disconnect from previous\n");
             close(fellow.fd_prev);
             fellow.prev_flag = 0;
           }
@@ -202,7 +200,6 @@ int main(int argc, char const *argv[]) {
         fellow.wait_connect = 0;
 
         /* Accept fellow. */
-        printf("PROTOCOL: will accept connection\n");
         addrlen = sizeof(addr_acpt);
 
         if ( (fellow.fd_prev = accept( fellow.fd_listen,
@@ -210,7 +207,6 @@ int main(int argc, char const *argv[]) {
           perror("Error: TCP Accept\nDescription:");
           brute_exit(&fellow);
         }
-        printf("PROTOCOL: accepted connection\n");
 
         /* Mark it as listining to a fellow and clean input buffer. */
         fellow.prev_flag = 1;
@@ -220,7 +216,6 @@ int main(int argc, char const *argv[]) {
 
         if (fellow.nw_arrival_flag == NO_NEW) {
           /* Accept NEW fellow. */
-          printf("PROTOCOL: will accept NEW connection\n");
           addrlen = sizeof(addr_acpt);
 
           if ( (fellow.fd_new_arrival = accept( fellow.fd_listen,
@@ -228,7 +223,6 @@ int main(int argc, char const *argv[]) {
             perror("Error: TCP Accept\nDescription:");
             brute_exit(&fellow);
           }
-          printf("PROTOCOL: accepted NEW connection\n");
 
           /* Mark it as listining to a new fellow and clean aux input buffer. */
           fellow.nw_arrival_flag = TRIG_NEW;
@@ -242,11 +236,11 @@ int main(int argc, char const *argv[]) {
             perror("Error: TCP Accept\nDescription:");
             brute_exit(&fellow);
           }
-          
+
           close(fd_tmp);
         }
 
-        
+
       } else {
         /* Out of time connection. Only makes sense if this is start? */
 
@@ -267,7 +261,6 @@ int main(int argc, char const *argv[]) {
       }
     }
   }
-
   /* Exit. */
   destroy_fellow(&fellow);
 
@@ -471,4 +464,8 @@ void serve_client(struct fellow *fellow) {
     printf("Error: Invalid message\n");
     brute_exit(fellow);
   }
+}
+
+void intHandler ( int exit_f ) {
+  return;
 }
