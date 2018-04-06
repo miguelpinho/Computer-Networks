@@ -157,7 +157,7 @@ void register_cs(char *reply, struct fellow *fellow) {
                     sizeof(addr_central) );
     if( nsend == -1 ) {
       perror("Error: Send to central\nDescription:");
-      brute_exit(fellow);
+      lastoption_exit(fellow);
     }
 
     addrlen = sizeof(addr_central);
@@ -193,14 +193,14 @@ void register_cs(char *reply, struct fellow *fellow) {
 
   if ( c_msg == 0 || nrecv == -1 ) {
     printf("Coundn't get an available answer from central server\n");
-		brute_exit(fellow);
+		lastoption_exit(fellow);
   }
 
   strcpy(reply, msg_in);
 }
 
 void set_cs(char *query, struct fellow *fellow, int pt) {
-  char msg_out[MAX_STR], msg_in[MAX_STR], verifier[MAX_STR];
+  char msg_out[MAX_STR], msg_in[MAX_STR], msg_data[MAX_STR], verifier[MAX_STR];
   int nsend, nrecv, arg_read, c_msg = 0, count = 0;
   struct sockaddr_in addr_central;
   socklen_t addrlen;
@@ -220,7 +220,7 @@ void set_cs(char *query, struct fellow *fellow, int pt) {
                     sizeof(addr_central) );
     if( nsend == -1 ) {
       perror("Error: Send to central\nDescription:");
-      brute_exit(fellow);
+      lastoption_exit(fellow);
     }
 
     addrlen = sizeof(addr_central);
@@ -252,11 +252,17 @@ void set_cs(char *query, struct fellow *fellow, int pt) {
 
   if (c_msg == 0 || nrecv == -1) {
     printf("Coundn't get an available answer from central server\n");
-		brute_exit(fellow);
+		lastoption_exit(fellow);
   }
 
   msg_in[nrecv] = '\0';
-  printf("%s\n", msg_in);
+
+  /* Something went wrong, trying to set start or ds when there was already one */
+  if (strcmp(msg_data, "0;0.0.0.0;0") == 0)
+  {
+    printf("Error: There is already one server in that position (Start/Dispatch)\n");
+    lastoption_exit(fellow);
+  }
 
 }
 
@@ -279,7 +285,7 @@ void withdraw_cs(char *query, struct fellow *fellow) {
                     sizeof(addr_central) );
     if( nsend == -1 ) {
       perror("Error: Send to central\nDescription:");
-      brute_exit(fellow);
+      lastoption_exit(fellow);
     }
 
     addrlen = sizeof(addr_central);
@@ -311,7 +317,7 @@ void withdraw_cs(char *query, struct fellow *fellow) {
 
   if (c_msg == 0 || nrecv == -1) {
     printf("Coundn't get an available answer from central server\n");
-		brute_exit(fellow);
+		lastoption_exit(fellow);
   }
 
   msg_in[nrecv] = '\0';
@@ -350,6 +356,19 @@ void brute_exit(struct fellow *fellow) {
   }
 
   destroy_fellow(fellow);
+
+  exit(1);
+}
+
+void lastoption_exit(struct fellow *fellow) {
+
+  if (fellow->available == 0) {
+    stop_service(fellow);
+    fellow->available = -1;
+  }
+
+  destroy_fellow(fellow);
+  printf("Forced gracious exit completed\n");
 
   exit(1);
 }

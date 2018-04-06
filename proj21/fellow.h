@@ -74,5 +74,6 @@ void set_cs(char *query, struct fellow *fellow, int pt);
 void withdraw_cs(char *query, struct fellow *fellow);
 void brute_exit(struct fellow *fellow);
 void stop_service(struct fellow *fellow);
+void lastoption_exit(struct fellow *fellow);
 
 #endif
