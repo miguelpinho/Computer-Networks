@@ -130,7 +130,11 @@ void show_state(struct fellow *fellow) {
     }
     printf("\tThis: %s\n", (fellow->available == 1)?"Available":"Unavailable");
     printf("\tRing: %s\n", (fellow->ring_unavailable == 0)?"Available":"Unavailable");
-    printf("\tNext: id = %d\n", fellow->next.id);
+    if (fellow->next.id != -1) {
+      printf("\tNext: id = %d\n", fellow->next.id);
+    } else {
+      printf("\tThis server is alone in the ring\n");
+    }
   }
 }
 
@@ -171,7 +175,6 @@ void register_cs(char *reply, struct fellow *fellow) {
     }
 
     msg_in[nrecv] = '\0';
-    printf("%s\n", msg_in);
 
     arg_read = sscanf(msg_in, "%s", verifier);
     if (arg_read != 1) {
@@ -234,8 +237,8 @@ void set_cs(char *query, struct fellow *fellow, int pt) {
     }
 
     /* Check if message is OK */
-    arg_read = sscanf(msg_in, "%s", verifier);
-    if (arg_read != 1) {
+    arg_read = sscanf(msg_in, "%s %s", verifier, msg_data);
+    if (arg_read != 2) {
       printf("Error: Invalid message - %s", msg_in);
       count++;
       continue;
@@ -257,8 +260,9 @@ void set_cs(char *query, struct fellow *fellow, int pt) {
 
   msg_in[nrecv] = '\0';
 
+
   /* Something went wrong, trying to set start or ds when there was already one */
-  if (strcmp(msg_data, "0;0.0.0.0;0") == 0)
+  if (strcmp(msg_in, "OK 0;0.0.0.0;0") == 0)
   {
     printf("Error: There is already one server in that position (Start/Dispatch)\n");
     lastoption_exit(fellow);
@@ -321,7 +325,6 @@ void withdraw_cs(char *query, struct fellow *fellow) {
   }
 
   msg_in[nrecv] = '\0';
-  printf("%s\n", msg_in);
 }
 
 void stop_service(struct fellow *fellow) {
@@ -337,6 +340,8 @@ void stop_service(struct fellow *fellow) {
   if (ret==-1) {
     perror("Error: Sending to client\nDescription:");
   }
+
+  printf("Stopped providing a service\n");
 }
 
 void brute_exit(struct fellow *fellow) {
@@ -356,19 +361,19 @@ void brute_exit(struct fellow *fellow) {
   }
 
   destroy_fellow(fellow);
+  printf("Forced gracious exit completed\n");
 
   exit(1);
 }
 
 void lastoption_exit(struct fellow *fellow) {
-
   if (fellow->available == 0) {
     stop_service(fellow);
     fellow->available = -1;
   }
 
   destroy_fellow(fellow);
-  printf("Forced gracious exit completed\n");
+  printf("Forced forced gracious exit completed\n");
 
   exit(1);
 }

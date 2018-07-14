@@ -8,7 +8,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
-#include <signal.h>
 #include "fellow.h"
 #include "ring.h"
 
@@ -73,8 +72,6 @@ int main(int argc, char const *argv[]) {
           /* The previous disconnected */
           fellow.prev_flag = 0;
           close(fellow.fd_prev);
-
-          printf("PROTOCOL: the previous disconnect TCP\n");
 
           if (fellow.nw_arrival_flag == DONE_NEW) {
             /* The NEW is promoted to previous */
@@ -179,7 +176,6 @@ int main(int argc, char const *argv[]) {
 
     if (FD_ISSET(fellow.fd_service, &rfds)) {
       /* Respond to a client request. */
-      printf("CLIENT: Detected communication with client\n");
       serve_client(&fellow);
     }
 
@@ -193,7 +189,6 @@ int main(int argc, char const *argv[]) {
           /* Disconnects from previous. */
 
           if (fellow.prev_flag == 1) {
-            printf("PROTOCOL: disconnect from previous\n");
             close(fellow.fd_prev);
             fellow.prev_flag = 0;
           }
@@ -202,7 +197,6 @@ int main(int argc, char const *argv[]) {
         fellow.wait_connect = 0;
 
         /* Accept fellow. */
-        printf("PROTOCOL: will accept connection\n");
         addrlen = sizeof(addr_acpt);
 
         if ( (fellow.fd_prev = accept( fellow.fd_listen,
@@ -210,7 +204,6 @@ int main(int argc, char const *argv[]) {
           perror("Error: TCP Accept\nDescription:");
           brute_exit(&fellow);
         }
-        printf("PROTOCOL: accepted connection\n");
 
         /* Mark it as listining to a fellow and clean input buffer. */
         fellow.prev_flag = 1;
@@ -220,7 +213,6 @@ int main(int argc, char const *argv[]) {
 
         if (fellow.nw_arrival_flag == NO_NEW) {
           /* Accept NEW fellow. */
-          printf("PROTOCOL: will accept NEW connection\n");
           addrlen = sizeof(addr_acpt);
 
           if ( (fellow.fd_new_arrival = accept( fellow.fd_listen,
@@ -228,7 +220,6 @@ int main(int argc, char const *argv[]) {
             perror("Error: TCP Accept\nDescription:");
             brute_exit(&fellow);
           }
-          printf("PROTOCOL: accepted NEW connection\n");
 
           /* Mark it as listining to a new fellow and clean aux input buffer. */
           fellow.nw_arrival_flag = TRIG_NEW;
@@ -242,15 +233,15 @@ int main(int argc, char const *argv[]) {
             perror("Error: TCP Accept\nDescription:");
             brute_exit(&fellow);
           }
-          
+
           close(fd_tmp);
         }
 
-        
-      } else {
-        /* Out of time connection. Only makes sense if this is start? */
 
-        printf("Error: TCP accept out of time");
+      } else {
+        /* Out of time connection */
+
+        printf("WARNING: a SERVER tried to connect to this one out of the normal protocol. Gracious exit\n");
         brute_exit(&fellow);
       }
     }
@@ -261,13 +252,14 @@ int main(int argc, char const *argv[]) {
       if (exit_delay == 1) {
 
         exit_f = 1;
+
+        printf("Normal exit completed\n");
       } else {
 
         fellow.exiting = NO_EXIT;
       }
     }
   }
-
   /* Exit. */
   destroy_fellow(&fellow);
 
@@ -282,7 +274,7 @@ void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, in
   struct in_addr *a;
 
   if (argc < 9 || argc > 13) {
-    printf("Error: incorrect number of arguments\n");
+    printf("Error: incorrect number of arguments. Usage: %s\n", USAGE);
     exit(1);
   }
 
@@ -456,6 +448,8 @@ void serve_client(struct fellow *fellow) {
       brute_exit(fellow);
     }
 
+    printf("Started providing a service\n");
+
   } else if (strcmp(toggle, "OFF") == 0) {
     become_available(fellow);
     sprintf(msg_out, "YOUR_SERVICE OFF");
@@ -465,6 +459,8 @@ void serve_client(struct fellow *fellow) {
       perror("Error: Sending to client\nDescription:");
       brute_exit(fellow);
     }
+
+    printf("Stopped providing a service\n");
 
   } else {
     /* invalid message. */

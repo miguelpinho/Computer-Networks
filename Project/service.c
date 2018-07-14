@@ -8,7 +8,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
-#include <signal.h>
 #include "fellow.h"
 #include "ring.h"
 
@@ -22,7 +21,6 @@ enum input_type {IN_ERROR, IN_JOIN, IN_NO_JOIN, IN_STATE, IN_LEAVE, IN_NO_LEAVE,
 void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, int *tpt, char *csip, int *cspt);
 int parse_user_input(int *service);
 void serve_client(struct fellow *fellow);
-void intHandler(int);
 
 int main(int argc, char const *argv[]) {
   int sel_in, exit_f = 0, exit_delay = 0, max_fd = 0;
@@ -35,7 +33,6 @@ int main(int argc, char const *argv[]) {
   socklen_t addrlen = sizeof(addr_acpt), addrlen_c;
   char msg_in[MAX_STR];
 
-  signal(SIGINT, intHandler);
   new_fellow(&fellow);
 
   get_arguments(argc, argv, &(fellow.id), fellow.ip, &(fellow.upt),
@@ -242,9 +239,9 @@ int main(int argc, char const *argv[]) {
 
 
       } else {
-        /* Out of time connection. Only makes sense if this is start? */
+        /* Out of time connection */
 
-        printf("Error: TCP accept out of time");
+        printf("WARNING: a SERVER tried to connect to this one out of the normal protocol. Gracious exit\n");
         brute_exit(&fellow);
       }
     }
@@ -255,6 +252,8 @@ int main(int argc, char const *argv[]) {
       if (exit_delay == 1) {
 
         exit_f = 1;
+
+        printf("Normal exit completed\n");
       } else {
 
         fellow.exiting = NO_EXIT;
@@ -275,7 +274,7 @@ void get_arguments(int argc, const char *argv[], int *id, char *ip, int *upt, in
   struct in_addr *a;
 
   if (argc < 9 || argc > 13) {
-    printf("Error: incorrect number of arguments\n");
+    printf("Error: incorrect number of arguments. Usage: %s\n", USAGE);
     exit(1);
   }
 
@@ -449,6 +448,8 @@ void serve_client(struct fellow *fellow) {
       brute_exit(fellow);
     }
 
+    printf("Started providing a service\n");
+
   } else if (strcmp(toggle, "OFF") == 0) {
     become_available(fellow);
     sprintf(msg_out, "YOUR_SERVICE OFF");
@@ -459,13 +460,11 @@ void serve_client(struct fellow *fellow) {
       brute_exit(fellow);
     }
 
+    printf("Stopped providing a service\n");
+
   } else {
     /* invalid message. */
     printf("Error: Invalid message\n");
     brute_exit(fellow);
   }
-}
-
-void intHandler ( int exit_f ) {
-  return;
 }

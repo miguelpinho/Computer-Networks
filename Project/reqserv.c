@@ -8,7 +8,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
-#include <signal.h>
 
 #define MAX_STR 50
 #define N_CHANCES 3
@@ -22,7 +21,6 @@ void get_arguments(int argc, const char *argv[], char *csip, int *cspt);
 int parse_user_input(int *service);
 void request_service(int *service, int fd_udp, int fd_udp_serv, struct sockaddr_in addr_central, struct sockaddr_in *addr_service, socklen_t *addrlen, int *id, char *ip, int *upt);
 void terminate_service(int fd_udp_serv, int fd_udp, struct sockaddr_in addr_service, socklen_t *addrlen);
-void intHandler(int);
 void close_sockets(int, int);
 
 int main(int argc, char const *argv[])
@@ -37,8 +35,6 @@ int main(int argc, char const *argv[])
 	struct timeval timeout;
   timeout.tv_sec = 5;
   timeout.tv_usec = 0;
-
-	signal(SIGINT, intHandler);
 
   get_arguments(argc, argv, csip, &cspt);
 
@@ -147,6 +143,7 @@ int main(int argc, char const *argv[])
 			}
 
 			msg_in[nrecv] = '\0';
+			printf("Server left, service stopped\n");
 			service = -1;
 
 		}
@@ -350,6 +347,7 @@ void request_service(int *service, int fd_udp, int fd_udp_serv, struct sockaddr_
     }
 
 		msg_in[nrecv] = '\0';
+		printf("Your service is running\n");
 
 		} else {
     /* No server providing the Service */
@@ -378,11 +376,8 @@ void terminate_service(int fd_udp_serv, int fd_udp, struct sockaddr_in addr_serv
 		close_sockets(fd_udp, fd_udp_serv);
 		exit(1); /*error*/
 	}
+	printf("Your service stopped\n");
 	msg_in[nrecv] = '\0';
-}
-
-void intHandler ( int exit_f ) {
-  return;
 }
 
 void close_sockets(int fd_udp, int fd_udp_serv) {

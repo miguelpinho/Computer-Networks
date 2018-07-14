@@ -360,6 +360,8 @@ void join_ring(struct fellow *fellow , int tpt_start , char *ip_start, int id_st
 
   fellow->prev_flag = 1;
   fellow->in_buffer[0] = '\0';
+
+  printf("This server has joined ring\n");
 }
 
 void new_arrival_ring(struct fellow *fellow, int id_new, int tpt_new, char *ip_new, int id_start) {
@@ -416,6 +418,8 @@ void new_to_prev(struct fellow *fellow) {
   fellow->fd_new_arrival = -1;
 
   fellow->prev_flag = 1;
+
+  printf("This (START) server has joined a NEW server to the ring\n");
 
   if (fellow->ring_unavailable == 1) {
     /* Needs to warn new ring is unavailable */
@@ -560,7 +564,10 @@ void token_exit(struct fellow *fellow, int id_out, int id_next, char *ip_next, i
 
     if (fellow->exiting == NO_EXIT) {
       /* Something is wrong. */
+      printf("WARNING: Invalid O token\n");
     }
+
+    printf("This server has exited the ring, after making sure it has been rebuilt\n");
 
     close(fellow->fd_prev);
     fellow->prev_flag = 0;
@@ -632,6 +639,8 @@ void token_new_start(struct fellow *fellow) {
   set_cs("SET_START", fellow, fellow->tpt);
 
   fellow->start = 1;
+
+  printf("This server is now the START\n");
 }
 /*****STEP 2 END*****/
 
@@ -648,6 +657,8 @@ void become_unavailable( struct fellow *fellow) {
   withdraw_cs("WITHDRAW_DS", fellow);
   fellow->dispatch = 0;
   fellow->available = 0;
+
+  printf("This server is no longer DISPATCH\n");
 
   if( fellow->next.id == -1 ) {
     /* This was the only fellow */
@@ -675,6 +686,8 @@ void token_search(struct fellow *fellow, int id_sender) {
   } else if ( fellow->available == 1) {
     set_cs("SET_DS", fellow, fellow->upt);
     fellow->dispatch = 1;
+
+    printf("This server is the new DISPATCH\n");
 
     send_token('T', fellow, id_sender, 0, 0, 0);
   } else {
@@ -708,6 +721,8 @@ void token_unavailable( struct fellow *fellow, int id_sender) {
   fellow->nw_available_flag = 0;
 
   if (fellow->id == id_sender) {
+    printf("This server has signaled the ring as UNAVAILABLE\n");
+
     if (fellow->exiting == TRIG_EXIT) {
     /* The sender of I was waiting for exit. Can proceed now */
 
@@ -763,6 +778,8 @@ void token_available( struct fellow *fellow, int id_sender) {
     /* Can become new dispatch */
     fellow->dispatch = 1;
     set_cs("SET_DS", fellow, fellow->upt);
+
+    printf("This server has made the ring AVAILABLE and is the new DISPATCH\n");
 
     if (fellow->exiting != NO_EXIT) {
       /* Is in exit, lose dispatch status it has just gained */
@@ -833,6 +850,7 @@ void regist_on_central(struct fellow *fellow) {
       fellow->available = 1;
       fellow->ring_unavailable = 0;
 
+      printf("This is the FIRST server of the ring\n");
     } else {
       arg_read = sscanf(msg_data, "%*d;%d;%[^; ];%d%n", &id_start, ip_start, &tpt_start, &char_read);
       if (arg_read != 3) {

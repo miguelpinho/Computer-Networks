@@ -76,4 +76,5 @@ void brute_exit(struct fellow *fellow);
 void stop_service(struct fellow *fellow);
 void lastoption_exit(struct fellow *fellow);
 
+
 #endif

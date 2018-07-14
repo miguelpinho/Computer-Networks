@@ -347,7 +347,7 @@ void request_service(int *service, int fd_udp, int fd_udp_serv, struct sockaddr_
     }
 
 		msg_in[nrecv] = '\0';
-		printf("Service running\n");
+		printf("Your service is running\n");
 
 		} else {
     /* No server providing the Service */
@@ -376,8 +376,8 @@ void terminate_service(int fd_udp_serv, int fd_udp, struct sockaddr_in addr_serv
 		close_sockets(fd_udp, fd_udp_serv);
 		exit(1); /*error*/
 	}
+	printf("Your service stopped\n");
 	msg_in[nrecv] = '\0';
-	printf("Service stopped\n");
 }
 
 void close_sockets(int fd_udp, int fd_udp_serv) {
