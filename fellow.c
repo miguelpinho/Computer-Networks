@@ -161,7 +161,7 @@ void register_cs(char *reply, struct fellow *fellow) {
                     sizeof(addr_central) );
     if( nsend == -1 ) {
       perror("Error: Send to central\nDescription:");
-      brute_exit(fellow);
+      lastoption_exit(fellow);
     }
 
     addrlen = sizeof(addr_central);
@@ -196,7 +196,7 @@ void register_cs(char *reply, struct fellow *fellow) {
 
   if ( c_msg == 0 || nrecv == -1 ) {
     printf("Coundn't get an available answer from central server\n");
-		brute_exit(fellow);
+		lastoption_exit(fellow);
   }
 
   strcpy(reply, msg_in);
@@ -223,7 +223,7 @@ void set_cs(char *query, struct fellow *fellow, int pt) {
                     sizeof(addr_central) );
     if( nsend == -1 ) {
       perror("Error: Send to central\nDescription:");
-      brute_exit(fellow);
+      lastoption_exit(fellow);
     }
 
     addrlen = sizeof(addr_central);
@@ -255,7 +255,7 @@ void set_cs(char *query, struct fellow *fellow, int pt) {
 
   if (c_msg == 0 || nrecv == -1) {
     printf("Coundn't get an available answer from central server\n");
-		brute_exit(fellow);
+		lastoption_exit(fellow);
   }
 
   msg_in[nrecv] = '\0';
@@ -265,7 +265,7 @@ void set_cs(char *query, struct fellow *fellow, int pt) {
   if (strcmp(msg_in, "OK 0;0.0.0.0;0") == 0)
   {
     printf("Error: There is already one server in that position (Start/Dispatch)\n");
-    brute_exit(fellow);
+    lastoption_exit(fellow);
   }
 
 }
@@ -289,7 +289,7 @@ void withdraw_cs(char *query, struct fellow *fellow) {
                     sizeof(addr_central) );
     if( nsend == -1 ) {
       perror("Error: Send to central\nDescription:");
-      brute_exit(fellow);
+      lastoption_exit(fellow);
     }
 
     addrlen = sizeof(addr_central);
@@ -321,7 +321,7 @@ void withdraw_cs(char *query, struct fellow *fellow) {
 
   if (c_msg == 0 || nrecv == -1) {
     printf("Coundn't get an available answer from central server\n");
-		brute_exit(fellow);
+		lastoption_exit(fellow);
   }
 
   msg_in[nrecv] = '\0';
@@ -355,6 +355,18 @@ void brute_exit(struct fellow *fellow) {
     fellow->start = 0;
   }
 
+  if (fellow->available == 0) {
+    stop_service(fellow);
+    fellow->available = -1;
+  }
+
+  destroy_fellow(fellow);
+  printf("Forced gracious exit completed\n");
+
+  exit(1);
+}
+
+void lastoption_exit(struct fellow *fellow) {
   if (fellow->available == 0) {
     stop_service(fellow);
     fellow->available = -1;
